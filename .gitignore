@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploaded/generated photos
+storage/*
+!storage/.gitkeep
+
+uploads/
+processed/
+
+# Node
+node_modules/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+*.tmp
