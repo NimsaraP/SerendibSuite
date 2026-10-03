@@ -1,0 +1,527 @@
+/* ==========================================================================
+   SerendibSuite — Global Design System
+   Professional photography management dashboard
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Google Font import
+   -------------------------------------------------------------------------- */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+
+/* --------------------------------------------------------------------------
+   CSS custom properties (design tokens)
+   -------------------------------------------------------------------------- */
+:root {
+    /* Brand palette */
+    --color-bg:           #0f1117;
+    --color-surface:      #1a1d27;
+    --color-surface-2:    #22263a;
+    --color-border:       #2e3250;
+    --color-accent:       #6c63ff;
+    --color-accent-hover: #5a52e0;
+    --color-accent-soft:  rgba(108,99,255,.15);
+
+    /* Text */
+    --color-text:         #e8eaf6;
+    --color-text-muted:   #8b90b8;
+    --color-text-faint:   #4a4f72;
+
+    /* Status colours */
+    --color-green:  #34d399;
+    --color-blue:   #60a5fa;
+    --color-yellow: #fbbf24;
+    --color-red:    #f87171;
+    --color-gray:   #6b7280;
+
+    /* Sidebar */
+    --sidebar-width: 240px;
+
+    /* Spacing */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+
+    /* Transitions */
+    --transition: 0.2s ease;
+}
+
+/* --------------------------------------------------------------------------
+   Reset & base
+   -------------------------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: "Inter", system-ui, sans-serif;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+    display: flex;
+}
+
+a { color: inherit; text-decoration: none; }
+button { cursor: pointer; font-family: inherit; }
+img { max-width: 100%; }
+
+/* --------------------------------------------------------------------------
+   Layout — sidebar + main content
+   -------------------------------------------------------------------------- */
+.sidebar {
+    width: var(--sidebar-width);
+    background: var(--color-surface);
+    border-right: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 100;
+}
+
+.main-content {
+    margin-left: var(--sidebar-width);
+    flex: 1;
+    overflow-y: auto;
+    min-height: 100vh;
+}
+
+/* --------------------------------------------------------------------------
+   Sidebar — branding
+   -------------------------------------------------------------------------- */
+.sidebar-brand {
+    padding: 24px 20px 16px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.brand-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-text);
+    letter-spacing: -0.3px;
+}
+
+.brand-name span { color: var(--color-accent); }
+
+.brand-tagline {
+    font-size: 11px;
+    color: var(--color-text-muted);
+    margin-top: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   Sidebar — navigation
+   -------------------------------------------------------------------------- */
+.sidebar-nav {
+    padding: 12px 12px;
+    flex: 1;
+}
+
+.nav-section-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--color-text-faint);
+    padding: 8px 8px 4px;
+    margin-top: 8px;
+}
+
+.nav-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    font-size: 13.5px;
+    font-weight: 500;
+    transition: background var(--transition), color var(--transition);
+    margin-bottom: 2px;
+    user-select: none;
+}
+
+.nav-link:hover {
+    background: var(--color-accent-soft);
+    color: var(--color-text);
+}
+
+.nav-link.active {
+    background: var(--color-accent-soft);
+    color: var(--color-accent);
+}
+
+.nav-link .nav-icon { font-size: 16px; flex-shrink: 0; }
+
+.nav-link.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+/* --------------------------------------------------------------------------
+   Sidebar — footer
+   -------------------------------------------------------------------------- */
+.sidebar-footer {
+    padding: 16px 20px;
+    border-top: 1px solid var(--color-border);
+    font-size: 11px;
+    color: var(--color-text-faint);
+}
+
+.api-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--color-gray);
+    animation: pulse 2s infinite;
+}
+
+.status-dot.online { background: var(--color-green); }
+.status-dot.offline { background: var(--color-red); animation: none; }
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.4; }
+}
+
+/* --------------------------------------------------------------------------
+   Page header (inside main content)
+   -------------------------------------------------------------------------- */
+.page-header {
+    padding: 28px 32px 0;
+    border-bottom: 1px solid var(--color-border);
+    margin-bottom: 28px;
+}
+
+.page-header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.4px;
+}
+
+.page-header p {
+    color: var(--color-text-muted);
+    font-size: 13px;
+    margin: 4px 0 20px;
+}
+
+/* --------------------------------------------------------------------------
+   Sections (SPA views)
+   -------------------------------------------------------------------------- */
+.section { display: none; padding: 0 32px 32px; }
+.section.active { display: block; }
+
+/* --------------------------------------------------------------------------
+   Dashboard — stat cards
+   -------------------------------------------------------------------------- */
+.stat-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+}
+
+.stat-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 20px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: border-color var(--transition);
+}
+
+.stat-card:hover { border-color: var(--color-accent); }
+
+.stat-icon { font-size: 22px; }
+
+.stat-label {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--color-text);
+    line-height: 1;
+}
+
+/* --------------------------------------------------------------------------
+   Recent events list (dashboard widget)
+   -------------------------------------------------------------------------- */
+.widget {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 20px 22px;
+}
+
+.widget-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.recent-event-item {
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background var(--transition);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.recent-event-item:last-child { border-bottom: none; }
+
+.recent-event-item:hover { background: var(--color-accent-soft); }
+
+.rei-name { font-weight: 600; font-size: 13.5px; }
+
+.rei-meta {
+    display: flex;
+    gap: 12px;
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--color-text-muted);
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+/* --------------------------------------------------------------------------
+   Data table
+   -------------------------------------------------------------------------- */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+}
+
+.data-table th {
+    text-align: left;
+    padding: 10px 14px;
+    background: var(--color-surface-2);
+    color: var(--color-text-muted);
+    font-weight: 600;
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.data-table td {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--color-border);
+    color: var(--color-text);
+    vertical-align: middle;
+}
+
+.data-table tr:last-child td { border-bottom: none; }
+
+.data-table tbody tr:hover { background: var(--color-surface-2); }
+
+.table-wrapper {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+/* --------------------------------------------------------------------------
+   Buttons
+   -------------------------------------------------------------------------- */
+.btn-open {
+    background: var(--color-accent);
+    color: #fff;
+    border: none;
+    padding: 6px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 12.5px;
+    font-weight: 500;
+    transition: background var(--transition);
+}
+
+.btn-open:hover { background: var(--color-accent-hover); }
+
+.btn-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--color-surface-2);
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border);
+    padding: 7px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    margin-bottom: 20px;
+    transition: color var(--transition), border-color var(--transition);
+}
+
+.btn-back:hover { color: var(--color-text); border-color: var(--color-accent); }
+
+.btn-disabled {
+    background: var(--color-surface-2);
+    color: var(--color-text-faint);
+    border: 1px dashed var(--color-border);
+    padding: 8px 18px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    cursor: not-allowed;
+    margin-top: 10px;
+}
+
+/* --------------------------------------------------------------------------
+   Status badges
+   -------------------------------------------------------------------------- */
+.badge {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 20px;
+    font-size: 11.5px;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.badge-blue   { background: rgba(96,165,250,.18); color: var(--color-blue); }
+.badge-green  { background: rgba(52,211,153,.18); color: var(--color-green); }
+.badge-yellow { background: rgba(251,191,36,.18);  color: var(--color-yellow); }
+.badge-red    { background: rgba(248,113,113,.18); color: var(--color-red); }
+.badge-gray   { background: rgba(107,114,128,.18); color: var(--color-gray); }
+
+/* --------------------------------------------------------------------------
+   Event detail
+   -------------------------------------------------------------------------- */
+.detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.detail-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 20px 22px;
+}
+
+.detail-card h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 14px;
+    color: var(--color-text);
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.detail-card.full-width { grid-column: 1 / -1; }
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--color-border);
+    font-size: 13px;
+}
+
+.detail-row:last-child { border-bottom: none; }
+
+.detail-row span:first-child { color: var(--color-text-muted); }
+
+/* --------------------------------------------------------------------------
+   Photo upload placeholder
+   -------------------------------------------------------------------------- */
+.photo-upload-zone {
+    text-align: center;
+    padding: 36px 20px;
+    border: 2px dashed var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-text-muted);
+}
+
+.upload-icon { font-size: 36px; margin-bottom: 10px; }
+
+.upload-hint {
+    font-size: 12px;
+    color: var(--color-text-faint);
+    margin-top: 4px;
+}
+
+/* --------------------------------------------------------------------------
+   AI analysis placeholder
+   -------------------------------------------------------------------------- */
+.ai-placeholder {
+    padding: 20px;
+    text-align: center;
+    color: var(--color-text-muted);
+}
+
+.ai-feature-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 14px;
+}
+
+.ai-chip {
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   Utility: empty / error / loading messages
+   -------------------------------------------------------------------------- */
+.empty-msg {
+    text-align: center;
+    color: var(--color-text-faint);
+    padding: 32px;
+    font-size: 13px;
+}
+
+.error-msg {
+    color: var(--color-red);
+    background: rgba(248,113,113,.08);
+    border: 1px solid rgba(248,113,113,.2);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    font-size: 13px;
+    margin: 12px 0;
+}
+
+.loading-msg {
+    text-align: center;
+    color: var(--color-text-faint);
+    padding: 24px;
+    font-size: 13px;
+}
+
+/* --------------------------------------------------------------------------
+   Responsive — collapse sidebar on narrow screens
+   -------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+    .sidebar { width: 60px; }
+    .brand-name, .brand-tagline, .nav-section-label,
+    .nav-link span, .sidebar-footer { display: none; }
+    .nav-link { justify-content: center; padding: 12px; }
+    .main-content { margin-left: 60px; }
+    .stat-cards { grid-template-columns: 1fr; }
+    .detail-grid { grid-template-columns: 1fr; }
+    .section { padding: 0 16px 24px; }
+    .page-header { padding: 20px 16px 0; }
+}

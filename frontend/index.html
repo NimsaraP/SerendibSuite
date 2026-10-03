@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- SEO -->
+    <title>SerendibSuite — Photographer Workspace</title>
+    <meta name="description"
+          content="SerendibSuite: a professional dashboard for event photographers to manage clients, bookings, events and AI-assisted photo curation." />
+
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- =========================================================================
+     SIDEBAR
+     ========================================================================= -->
+<aside class="sidebar">
+
+    <!-- Branding -->
+    <div class="sidebar-brand">
+        <div class="brand-name">Serendib<span>Suite</span></div>
+        <div class="brand-tagline">Photographer Workspace</div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="sidebar-nav">
+        <div class="nav-section-label">Workspace</div>
+
+        <a class="nav-link active" data-section="section-dashboard" href="#">
+            <span class="nav-icon">🏠</span>
+            <span>Dashboard</span>
+        </a>
+
+        <a class="nav-link" data-section="section-clients" href="#">
+            <span class="nav-icon">👤</span>
+            <span>Clients</span>
+        </a>
+
+        <a class="nav-link" data-section="section-bookings" href="#">
+            <span class="nav-icon">📅</span>
+            <span>Bookings</span>
+        </a>
+
+        <a class="nav-link" data-section="section-events" href="#">
+            <span class="nav-icon">📸</span>
+            <span>Events</span>
+        </a>
+
+        <div class="nav-section-label">Coming Soon</div>
+
+        <a class="nav-link disabled" href="#">
+            <span class="nav-icon">🖼</span>
+            <span>Photos</span>
+        </a>
+
+        <a class="nav-link disabled" href="#">
+            <span class="nav-icon">🤖</span>
+            <span>AI Analysis</span>
+        </a>
+    </nav>
+
+    <!-- API status indicator -->
+    <div class="sidebar-footer">
+        <div class="api-status">
+            <div class="status-dot" id="api-dot"></div>
+            <span id="api-status-text">Checking API…</span>
+        </div>
+    </div>
+</aside>
+
+
+<!-- =========================================================================
+     MAIN CONTENT
+     ========================================================================= -->
+<main class="main-content">
+
+    <!-- -------------------------------------------------------------------
+         DASHBOARD SECTION
+         ------------------------------------------------------------------- -->
+    <section class="section active" id="section-dashboard">
+        <div class="page-header">
+            <h1>Dashboard</h1>
+            <p>Welcome to your SerendibSuite photographer workspace.</p>
+        </div>
+
+        <!-- Summary cards -->
+        <div class="stat-cards">
+            <div class="stat-card">
+                <div class="stat-icon">👤</div>
+                <div class="stat-label">Total Clients</div>
+                <div class="stat-value" id="stat-clients">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📅</div>
+                <div class="stat-label">Total Bookings</div>
+                <div class="stat-value" id="stat-bookings">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📸</div>
+                <div class="stat-label">Upcoming Events</div>
+                <div class="stat-value" id="stat-upcoming">—</div>
+            </div>
+        </div>
+
+        <!-- Recent events widget -->
+        <div class="widget">
+            <div class="widget-title">📋 Recent &amp; Upcoming Events</div>
+            <div id="recent-events-list">
+                <div class="loading-msg">Loading events…</div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- -------------------------------------------------------------------
+         EVENTS SECTION
+         ------------------------------------------------------------------- -->
+    <section class="section" id="section-events">
+        <div class="page-header">
+            <h1>Events</h1>
+            <p>All photo shoot occasions across your bookings.</p>
+        </div>
+        <div class="table-wrapper">
+            <div id="events-list">
+                <div class="loading-msg">Loading…</div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- -------------------------------------------------------------------
+         EVENT DETAIL SECTION (navigated to by clicking "Open Event")
+         ------------------------------------------------------------------- -->
+    <section class="section" id="section-event-detail">
+        <div class="page-header">
+            <h1>Event Detail</h1>
+            <p>Full information, photos, and AI analysis for this event.</p>
+        </div>
+
+        <!-- Back button -->
+        <button class="btn-back" id="btn-back-to-events">← Back to Events</button>
+
+        <div id="event-detail-content">
+            <div class="loading-msg">Loading event…</div>
+        </div>
+    </section>
+
+
+    <!-- -------------------------------------------------------------------
+         CLIENTS SECTION
+         ------------------------------------------------------------------- -->
+    <section class="section" id="section-clients">
+        <div class="page-header">
+            <h1>Clients</h1>
+            <p>People and organisations that hire you for shoots.</p>
+        </div>
+        <div class="table-wrapper">
+            <div id="clients-list">
+                <div class="loading-msg">Loading…</div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- -------------------------------------------------------------------
+         BOOKINGS SECTION
+         ------------------------------------------------------------------- -->
+    <section class="section" id="section-bookings">
+        <div class="page-header">
+            <h1>Bookings</h1>
+            <p>Confirmed and pending jobs from your clients.</p>
+        </div>
+        <div class="table-wrapper">
+            <div id="bookings-list">
+                <div class="loading-msg">Loading…</div>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+
+<!-- =========================================================================
+     SCRIPTS
+     ========================================================================= -->
+<!--
+    type="module" enables ES module import/export syntax in the browser.
+    The browser fetches api.js automatically when app.js imports it.
+    No bundler, no build step required.
+-->
+<script type="module">
+    import { getEvents } from "./js/api.js";
+
+    // -----------------------------------------------------------------------
+    // API health check — shows green/red dot in the sidebar footer.
+    // -----------------------------------------------------------------------
+    async function checkApiStatus() {
+        const dot  = document.getElementById("api-dot");
+        const text = document.getElementById("api-status-text");
+        try {
+            const res = await fetch("http://127.0.0.1:8000/api/health");
+            if (res.ok) {
+                dot.classList.add("online");
+                text.textContent = "API connected";
+            } else {
+                throw new Error();
+            }
+        } catch {
+            dot.classList.add("offline");
+            text.textContent = "API offline";
+        }
+    }
+
+    checkApiStatus();
+    // Re-check every 30 s so the dot updates if the server restarts.
+    setInterval(checkApiStatus, 30_000);
+</script>
+
+<!-- Main application logic (ES module) -->
+<script type="module" src="js/app.js"></script>
+
+<!-- Back button wired up after DOM is ready -->
+<script>
+    document.getElementById("btn-back-to-events").addEventListener("click", function () {
+        // Trigger the events nav link click so the nav highlight updates too.
+        document.querySelector('.nav-link[data-section="section-events"]').click();
+    });
+</script>
+
+</body>
+</html>

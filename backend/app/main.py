@@ -1,10 +1,13 @@
 from fastapi import FastAPI, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from backend.app.database.db import get_db, engine, Base
 from backend.app.api.clients import router as clients_router
 from backend.app.api.bookings import router as bookings_router
+from backend.app.api.events import router as events_router
+from backend.app.api.photos import router as photos_router
 
 # Importing the models package triggers all six model files to load.
 # This registers every table with Base.metadata so create_all() knows
@@ -18,10 +21,28 @@ app = FastAPI(
     version="0.1.0",
 )
 
+# ---------------------------------------------------------------------------
+# CORS — Cross-Origin Resource Sharing
+# ---------------------------------------------------------------------------
+# The browser blocks JavaScript from calling an API on a different "origin"
+# (protocol + host + port).  When the HTML file is opened directly from disk
+# (file://) or from a different port, FastAPI needs to tell the browser
+# "this is allowed".
+# allow_origins=["*"] permits all origins — fine for local development.
+# Tighten this to ["http://localhost:5500"] etc. before going to production.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Register feature routers.
-# include_router() mounts all routes from clients.py into the main app.
+# include_router() mounts all routes from the feature files into the main app.
 app.include_router(clients_router)
 app.include_router(bookings_router)
+app.include_router(events_router)
+app.include_router(photos_router)
 
 
 @app.on_event("startup")
