@@ -11,20 +11,47 @@ const API_BASE = "http://127.0.0.1:8000";
 
 // ---------------------------------------------------------------------------
 // Generic helper — wraps fetch, checks for HTTP errors, returns parsed JSON.
+// NOTE: Do NOT pass Content-Type for multipart uploads — the browser sets it
+// automatically with the correct boundary.
 // ---------------------------------------------------------------------------
 async function apiFetch(path, options = {}) {
+    const isFormData = options.body instanceof FormData;
+    const headers = isFormData
+        ? {}                                      // browser sets multipart boundary
+        : { "Content-Type": "application/json" };
+
     const response = await fetch(API_BASE + path, {
-        headers: { "Content-Type": "application/json" },
+        headers,
         ...options,
     });
 
     if (!response.ok) {
-        // Try to parse the FastAPI error detail, fall back to status text.
         const err = await response.json().catch(() => ({}));
-        throw new Error(err.detail || `HTTP ${response.status}: ${response.statusText}`);
+        throw new Error(formatApiError(err, response));
     }
 
     return response.json();
+}
+
+function formatApiError(err, response) {
+    const detail = err && err.detail;
+    if (typeof detail === "string" && detail.trim()) {
+        return detail;
+    }
+    if (Array.isArray(detail)) {
+        const parts = detail.map(item => {
+            if (typeof item === "string") return item;
+            if (item && item.msg) {
+                const field = Array.isArray(item.loc)
+                    ? item.loc.filter(p => p !== "body").join(".")
+                    : "";
+                return field ? `${field}: ${item.msg}` : item.msg;
+            }
+            return null;
+        }).filter(Boolean);
+        if (parts.length) return parts.join("; ");
+    }
+    return `HTTP ${response.status}: ${response.statusText}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -78,5 +105,72 @@ export async function createEvent(data) {
     return apiFetch("/api/events/", {
         method: "POST",
         body: JSON.stringify(data),
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Photos
+// ---------------------------------------------------------------------------
+
+/**
+ * Upload a single image file for an event.
+ * Uses multipart/form-data — NOT JSON.
+ */
+export async function uploadPhoto(eventId, file) {
+    const form = new FormData();
+    form.append("event_id", String(eventId));
+    form.append("file", file);
+
+    return apiFetch("/api/photos/", {
+        method: "POST",
+        body: form,   // FormData → browser sets Content-Type automatically
+    });
+}
+
+/**
+ * List all photos for an event.
+ */
+export async function getPhotosByEvent(eventId) {
+    return apiFetch(`/api/photos/?event_id=${eventId}`);
+}
+
+/**
+ * Get metadata for one photo.
+ */
+export async function getPhoto(id) {
+    return apiFetch(`/api/photos/${id}`);
+}
+
+/**
+ * Returns the URL to display a photo thumbnail.
+ * The browser fetches this directly as an <img src>.
+ */
+export function photoFileUrl(photoId) {
+    return `${API_BASE}/api/photos/${photoId}/file`;
+}
+
+/**
+ * Run AI analysis on a photo.
+ */
+export async function analysePhoto(photoId) {
+    return apiFetch(`/api/photos/${photoId}/analyse`, { method: "POST" });
+}
+
+/**
+ * Fetch all photos for an event with their analysis embedded.
+ * Returns PhotoWithAnalysis[] where each item has an optional .analysis object.
+ */
+export async function getPhotosWithAnalysis(eventId) {
+    return apiFetch(`/api/photos/with-analysis?event_id=${eventId}`);
+}
+
+/**
+ * Set the photographer's decision for a photo.
+ * decision must be "keep" or "reject".
+ */
+export async function setDecision(photoId, decision) {
+    return apiFetch(`/api/photos/${photoId}/decision`, {
+        method: "PATCH",
+        body: JSON.stringify({ decision }),
     });
 }

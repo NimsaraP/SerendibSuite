@@ -18,8 +18,9 @@ class ClientCreate(BaseModel):
     """
 
     # TODO (auth milestone): user_id will be taken from the JWT token.
-    # For now it is accepted in the request body so we can test without auth.
-    user_id: int
+    # Optional for Gate 2: if omitted, the API attaches the client to the
+    # existing demo photographer user (see create_client).
+    user_id: Optional[int] = None
 
     name: str
     email: EmailStr        # Pydantic validates this is a real email format

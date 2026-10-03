@@ -5,7 +5,30 @@ from sqlalchemy.orm import Session
 
 from backend.app.database.db import get_db
 from backend.app.models.client import Client
+from backend.app.models.user import User
 from backend.app.schemas.client import ClientCreate, ClientRead
+
+# Same placeholder photographer used by backend/seed_test_data.py.
+# Gate 2 has no auth, so new clients created from the UI attach here.
+DEMO_USER_EMAIL = "seed.photographer@serendibsuite.test"
+DEMO_USER_NAME = "Seed Photographer"
+DEMO_USER_PASSWORD_HASH = "seed_placeholder_hash_not_real"
+
+
+def _get_or_create_demo_user(db: Session) -> User:
+    """Find the demo photographer, or create them if the database is empty."""
+    user = db.query(User).filter(User.email == DEMO_USER_EMAIL).first()
+    if user is not None:
+        return user
+
+    user = User(
+        name=DEMO_USER_NAME,
+        email=DEMO_USER_EMAIL,
+        password_hash=DEMO_USER_PASSWORD_HASH,
+    )
+    db.add(user)
+    db.flush()
+    return user
 
 # -----------------------------------------------------------------------------
 # Router
@@ -39,9 +62,19 @@ def create_client(payload: ClientCreate, db: Session = Depends(get_db)):
       6. Refresh to get the auto-generated id and created_at from the DB.
       7. Return the saved Client — FastAPI serializes it via ClientRead.
     """
-    # model_dump() converts the Pydantic object to a plain Python dict.
-    # ** unpacks the dict as keyword arguments to the Client constructor.
-    new_client = Client(**payload.model_dump())
+    data = payload.model_dump()
+
+    if data.get("user_id") is None:
+        data["user_id"] = _get_or_create_demo_user(db).id
+    else:
+        owner = db.query(User).filter(User.id == data["user_id"]).first()
+        if owner is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"User with id={data['user_id']} does not exist.",
+            )
+
+    new_client = Client(**data)
 
     db.add(new_client)      # stage the INSERT (not sent to MySQL yet)
     db.commit()             # send the INSERT to MySQL and confirm

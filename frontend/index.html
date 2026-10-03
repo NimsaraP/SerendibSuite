@@ -105,6 +105,18 @@
             </div>
         </div>
 
+        <div class="widget create-panel" id="dashboard-start-panel">
+            <div class="widget-title">Start a job</div>
+            <p class="create-panel-hint">
+                Create a client, then a booking, then an event. Open the event to upload photos and run AI review.
+            </p>
+            <div class="create-actions">
+                <button type="button" class="btn-open" id="dash-goto-client">Create Client</button>
+                <button type="button" class="btn-open" id="dash-goto-booking">Create Booking</button>
+                <button type="button" class="btn-open" id="dash-goto-event">Create Event</button>
+            </div>
+        </div>
+
         <!-- Recent events widget -->
         <div class="widget">
             <div class="widget-title">📋 Recent &amp; Upcoming Events</div>
@@ -123,6 +135,45 @@
             <h1>Events</h1>
             <p>All photo shoot occasions across your bookings.</p>
         </div>
+
+        <div class="create-panel">
+            <h2>Create Event</h2>
+            <p class="create-panel-hint">Attach an event to an existing booking, then open it to upload photos.</p>
+            <form id="form-create-event" class="create-form">
+                <label>
+                    Booking
+                    <select id="event-booking" name="booking_id" required>
+                        <option value="">Loading bookings…</option>
+                    </select>
+                </label>
+                <label>
+                    Event name
+                    <input type="text" id="event-name" name="name" required placeholder="Ceremony" maxlength="200" />
+                </label>
+                <label>
+                    Event date
+                    <input type="date" id="event-date" name="event_date" required />
+                </label>
+                <label>
+                    Location
+                    <input type="text" id="event-location" name="location" placeholder="Optional" maxlength="255" />
+                </label>
+                <label>
+                    Status
+                    <select id="event-status" name="status">
+                        <option value="scheduled" selected>scheduled</option>
+                        <option value="in_progress">in_progress</option>
+                        <option value="completed">completed</option>
+                        <option value="cancelled">cancelled</option>
+                    </select>
+                </label>
+                <div class="create-form-actions">
+                    <button type="submit" class="btn-open" id="btn-create-event">Create Event</button>
+                </div>
+            </form>
+            <div class="form-error" id="event-form-error" hidden></div>
+        </div>
+
         <div class="table-wrapper">
             <div id="events-list">
                 <div class="loading-msg">Loading…</div>
@@ -157,6 +208,34 @@
             <h1>Clients</h1>
             <p>People and organisations that hire you for shoots.</p>
         </div>
+
+        <div class="create-panel">
+            <h2>Create Client</h2>
+            <p class="create-panel-hint">Add a client, then create a booking for them.</p>
+            <form id="form-create-client" class="create-form">
+                <label>
+                    Name
+                    <input type="text" id="client-name" name="name" required placeholder="Silva Family" maxlength="100" />
+                </label>
+                <label>
+                    Email
+                    <input type="email" id="client-email" name="email" required placeholder="client@example.com" />
+                </label>
+                <label>
+                    Phone
+                    <input type="text" id="client-phone" name="phone" placeholder="Optional" maxlength="30" />
+                </label>
+                <label class="create-form-span">
+                    Notes
+                    <textarea id="client-notes" name="notes" rows="2" placeholder="Optional"></textarea>
+                </label>
+                <div class="create-form-actions">
+                    <button type="submit" class="btn-open" id="btn-create-client">Create Client</button>
+                </div>
+            </form>
+            <div class="form-error" id="client-form-error" hidden></div>
+        </div>
+
         <div class="table-wrapper">
             <div id="clients-list">
                 <div class="loading-msg">Loading…</div>
@@ -173,6 +252,45 @@
             <h1>Bookings</h1>
             <p>Confirmed and pending jobs from your clients.</p>
         </div>
+
+        <div class="create-panel">
+            <h2>Create Booking</h2>
+            <p class="create-panel-hint">Choose a client, then create an event for this booking.</p>
+            <form id="form-create-booking" class="create-form">
+                <label>
+                    Client
+                    <select id="booking-client" name="client_id" required>
+                        <option value="">Loading clients…</option>
+                    </select>
+                </label>
+                <label>
+                    Title
+                    <input type="text" id="booking-title" name="title" required placeholder="Silva Wedding" maxlength="200" />
+                </label>
+                <label>
+                    Booking date
+                    <input type="date" id="booking-date" name="booking_date" required />
+                </label>
+                <label>
+                    Status
+                    <select id="booking-status" name="status">
+                        <option value="enquiry">enquiry</option>
+                        <option value="confirmed" selected>confirmed</option>
+                        <option value="completed">completed</option>
+                        <option value="cancelled">cancelled</option>
+                    </select>
+                </label>
+                <label class="create-form-span">
+                    Notes
+                    <textarea id="booking-notes" name="notes" rows="2" placeholder="Optional"></textarea>
+                </label>
+                <div class="create-form-actions">
+                    <button type="submit" class="btn-open" id="btn-create-booking">Create Booking</button>
+                </div>
+            </form>
+            <div class="form-error" id="booking-form-error" hidden></div>
+        </div>
+
         <div class="table-wrapper">
             <div id="bookings-list">
                 <div class="loading-msg">Loading…</div>

@@ -3,13 +3,21 @@ from pathlib import Path
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from backend.app.database.db import get_db
 from backend.app.models.event import Event
 from backend.app.models.photo import Photo
 from backend.app.models.photo_analysis import PhotoAnalysis
-from backend.app.schemas.photo import PhotoRead, AnalysisRead
+from backend.app.schemas.photo import (
+    PhotoRead,
+    AnalysisRead,
+    PhotoWithAnalysis,
+    AnalysisSummary,
+    DecisionRequest,
+    DecisionRead,
+)
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -194,6 +202,66 @@ def list_photos(event_id: Optional[int] = None, db: Session = Depends(get_db)):
 
 
 # ---------------------------------------------------------------------------
+# GET /api/photos/with-analysis?event_id={id}  — Photos + embedded analysis
+# ---------------------------------------------------------------------------
+@router.get(
+    "/with-analysis",
+    response_model=List[PhotoWithAnalysis],
+)
+def list_photos_with_analysis(
+    event_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+):
+    """
+    Return photos for an event with their analysis embedded.
+
+    Eliminates the N+1 per-photo analysis requests from the frontend.
+    Each photo carries an 'analysis' key that is either null (not yet
+    analysed) or an AnalysisSummary object.
+    """
+    if event_id is not None:
+        event = db.query(Event).filter(Event.id == event_id).first()
+        if event is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Event with id={event_id} does not exist.",
+            )
+        photos = db.query(Photo).filter(Photo.event_id == event_id).all()
+    else:
+        photos = db.query(Photo).all()
+
+    result = []
+    for photo in photos:
+        analysis = (
+            db.query(PhotoAnalysis)
+            .filter(PhotoAnalysis.photo_id == photo.id)
+            .first()
+        )
+        analysis_summary = None
+        if analysis is not None:
+            analysis_summary = AnalysisSummary(
+                blur_score=analysis.blur_score,
+                is_blurry=analysis.is_blurry,
+                face_detected=analysis.face_detected,
+                eyes_status=analysis.eyes_status,
+                ai_recommendation=analysis.ai_recommendation,
+                photographer_decision=analysis.photographer_decision,
+                reason=None,   # reason is a pipeline artefact, not stored
+            )
+        result.append(
+            PhotoWithAnalysis(
+                id=photo.id,
+                event_id=photo.event_id,
+                original_filename=photo.original_filename,
+                file_size=photo.file_size,
+                created_at=photo.created_at,
+                analysis=analysis_summary,
+            )
+        )
+    return result
+
+
+# ---------------------------------------------------------------------------
 # GET /api/photos/{photo_id}  — Get one photo's metadata
 # ---------------------------------------------------------------------------
 @router.get(
@@ -220,7 +288,53 @@ def get_photo(photo_id: int, db: Session = Depends(get_db)):
 
 
 # ---------------------------------------------------------------------------
-# POST /api/photos/{photo_id}/analyse  — Run AI pipeline on a stored photo
+# GET /api/photos/{photo_id}/file  — Serve the actual image binary
+# ---------------------------------------------------------------------------
+@router.get("/{photo_id}/file")
+def serve_photo_file(photo_id: int, db: Session = Depends(get_db)):
+    """
+    Stream the stored image file for a given photo_id.
+
+    Security:
+      - The file path is never taken from the request — it is always
+        looked up from the database using photo_id.
+      - STORAGE_ROOT / photo.file_path is resolved; we confirm the
+        result still sits under STORAGE_ROOT to prevent path traversal.
+      - The correct Content-Type is returned from the database record.
+
+    The browser uses this URL as the <img src="..."> for thumbnails.
+    """
+    photo = db.query(Photo).filter(Photo.id == photo_id).first()
+    if photo is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Photo with id={photo_id} does not exist.",
+        )
+
+    abs_path = (STORAGE_ROOT / photo.file_path).resolve()
+
+    # Path-traversal guard: the resolved path must still be inside STORAGE_ROOT.
+    try:
+        abs_path.relative_to(STORAGE_ROOT.resolve())
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied.",
+        )
+
+    if not abs_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Image file not found on disk.",
+        )
+
+    return FileResponse(
+        path=str(abs_path),
+        media_type=photo.mime_type,
+        filename=photo.original_filename,
+    )
+
+
 # ---------------------------------------------------------------------------
 @router.post(
     "/{photo_id}/analyse",
@@ -338,5 +452,61 @@ def analyse_photo(photo_id: int, db: Session = Depends(get_db)):
         eyes_status=analysis.eyes_status,
         similarity_group=analysis.similarity_group,
         ai_recommendation=analysis.ai_recommendation,
+        photographer_decision=analysis.photographer_decision,
         reason=result.reason,
+    )
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/photos/{photo_id}/decision  — Set photographer decision
+# ---------------------------------------------------------------------------
+@router.patch(
+    "/{photo_id}/decision",
+    response_model=DecisionRead,
+)
+def set_photographer_decision(
+    photo_id: int,
+    body: DecisionRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Record the photographer's decision (keep / reject) for a photo.
+
+    Rules:
+      - The photo must exist  (404 if not).
+      - An analysis record must already exist (400 if not analysed yet).
+      - Only "keep" and "reject" are accepted (enforced by Pydantic Literal).
+      - The AI recommendation is never modified — only photographer_decision.
+      - Safe to call multiple times: calling again changes the decision.
+    """
+    # 1. Photo must exist.
+    photo = db.query(Photo).filter(Photo.id == photo_id).first()
+    if photo is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Photo with id={photo_id} does not exist.",
+        )
+
+    # 2. Analysis must exist — cannot decide on an unanalysed photo.
+    analysis = (
+        db.query(PhotoAnalysis)
+        .filter(PhotoAnalysis.photo_id == photo_id)
+        .first()
+    )
+    if analysis is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Photo must be analysed before setting a photographer decision.",
+        )
+
+    # 3. Apply the decision (Pydantic already validated it is keep|reject).
+    analysis.photographer_decision = body.decision
+    db.commit()
+    db.refresh(analysis)
+
+    return DecisionRead(
+        photo_id=photo_id,
+        original_filename=photo.original_filename,
+        ai_recommendation=analysis.ai_recommendation,
+        photographer_decision=analysis.photographer_decision,
     )

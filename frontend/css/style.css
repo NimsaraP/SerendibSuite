@@ -525,3 +525,852 @@ img { max-width: 100%; }
     .section { padding: 0 16px 24px; }
     .page-header { padding: 20px 16px 0; }
 }
+
+/* ==========================================================================
+   Photo gallery — upload bar
+   ========================================================================== */
+.upload-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+    padding: 14px 0 14px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.btn-upload-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    color: var(--color-text);
+    padding: 7px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color var(--transition), background var(--transition);
+}
+
+.btn-upload-label:hover {
+    border-color: var(--color-accent);
+    background: var(--color-accent-soft);
+}
+
+.btn-upload {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--color-accent);
+    color: #fff;
+    border: none;
+    padding: 7px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    transition: background var(--transition);
+}
+
+.btn-upload:hover { background: var(--color-accent-hover); }
+
+.upload-file-label {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Photo count badge next to section header */
+.photo-count-badge {
+    display: inline-block;
+    margin-left: 10px;
+    background: var(--color-accent-soft);
+    color: var(--color-accent);
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    vertical-align: middle;
+}
+
+/* ==========================================================================
+   Photo gallery — upload progress rows
+   ========================================================================== */
+#upload-progress-area {
+    margin-bottom: 14px;
+}
+
+.upload-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 12px;
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-2);
+    margin-bottom: 4px;
+    font-size: 13px;
+}
+
+.upload-row-name {
+    color: var(--color-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 70%;
+}
+
+.upload-row-status {
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.status-uploading { color: var(--color-yellow); }
+.status-success   { color: var(--color-green); }
+.status-error     { color: var(--color-red); }
+
+.upload-summary {
+    text-align: right;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px 0;
+}
+
+.upload-summary.success { color: var(--color-green); }
+.upload-summary.error   { color: var(--color-red); }
+
+/* ==========================================================================
+   Photo gallery — grid and cards
+   ========================================================================== */
+.photo-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 14px;
+    margin-top: 6px;
+}
+
+.photo-empty-state {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--color-text-muted);
+}
+
+.photo-empty-icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+    opacity: 0.4;
+}
+
+.photo-card {
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.photo-card:hover {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 2px var(--color-accent-soft);
+}
+
+.photo-thumb-wrap {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    background: var(--color-bg);
+    overflow: hidden;
+    position: relative;
+}
+
+.photo-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.3s ease;
+}
+
+.photo-card:hover .photo-thumb { transform: scale(1.04); }
+
+.photo-card-body {
+    padding: 10px 12px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+}
+
+.photo-filename {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.photo-meta {
+    font-size: 11px;
+    color: var(--color-text-faint);
+}
+
+/* ==========================================================================
+   Photo gallery — AI analysis zone
+   ========================================================================== */
+.photo-ai-zone {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 4px;
+    padding-top: 8px;
+    border-top: 1px solid var(--color-border);
+}
+
+.ai-label-note {
+    font-size: 10px;
+    color: var(--color-text-faint);
+    font-style: italic;
+}
+
+.ai-result-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+/* Generic AI chip */
+.ai-status-chip,
+.ai-result-chip {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* Chip colour variants */
+.chip-keep    { background: rgba(52,211,153,.18); color: var(--color-green); }
+.chip-review  { background: rgba(251,191,36,.18);  color: var(--color-yellow); }
+.chip-neutral { background: var(--color-surface); color: var(--color-text-muted); border: 1px solid var(--color-border); }
+.chip-pending { background: var(--color-surface); color: var(--color-text-faint); border: 1px dashed var(--color-border); }
+.chip-analyzing { background: rgba(108,99,255,.18); color: var(--color-accent); animation: pulse 1.5s infinite; }
+
+.ai-reason {
+    font-size: 11px;
+    color: var(--color-text-muted);
+    line-height: 1.5;
+    font-style: italic;
+}
+
+/* Analyse button */
+.btn-analyse {
+    background: transparent;
+    color: var(--color-accent);
+    border: 1px solid var(--color-accent);
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 11.5px;
+    font-weight: 500;
+    transition: background var(--transition), color var(--transition);
+    align-self: flex-start;
+    margin-top: 2px;
+}
+
+.btn-analyse:hover {
+    background: var(--color-accent);
+    color: #fff;
+}
+
+.btn-analyse-again {
+    font-size: 11px;
+    padding: 3px 8px;
+}
+
+@media (max-width: 768px) {
+    .photo-gallery { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+    .upload-bar { flex-direction: column; align-items: flex-start; }
+}
+
+/* ==========================================================================
+   Photos section header (title + Final Selection button on same row)
+   ========================================================================== */
+.photos-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 4px;
+}
+
+.photos-header h3 {
+    margin-bottom: 0;
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.btn-final-selection {
+    background: var(--color-surface-2);
+    color: var(--color-yellow);
+    border: 1px solid var(--color-yellow);
+    padding: 6px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 12.5px;
+    font-weight: 600;
+    transition: background var(--transition), color var(--transition);
+}
+
+.btn-final-selection:hover {
+    background: rgba(251,191,36,.15);
+}
+
+.btn-back-gallery {
+    background: var(--color-surface-2);
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border);
+    padding: 6px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 12.5px;
+    font-weight: 500;
+    transition: border-color var(--transition), color var(--transition);
+}
+
+.btn-back-gallery:hover { border-color: var(--color-accent); color: var(--color-text); }
+
+/* ==========================================================================
+   Event photo summary bar
+   ========================================================================== */
+.photo-summary-bar {
+    margin-bottom: 14px;
+    margin-top: 10px;
+}
+
+.summary-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 8px 14px;
+    font-size: 12.5px;
+}
+
+.summary-item       { color: var(--color-text-muted); }
+.summary-item strong { color: var(--color-text); }
+.summary-sep        { color: var(--color-text-faint); }
+.summary-keep strong  { color: var(--color-green); }
+.summary-reject strong { color: var(--color-red); }
+.summary-pending strong { color: var(--color-yellow); }
+
+/* ==========================================================================
+   Photo card — decision visual states
+   ========================================================================== */
+.photo-card.card-selected {
+    border-color: var(--color-green);
+    box-shadow: 0 0 0 2px rgba(52,211,153,.25);
+}
+
+.photo-card.card-rejected {
+    border-color: var(--color-red);
+    box-shadow: 0 0 0 2px rgba(248,113,113,.15);
+    opacity: 0.7;
+}
+
+/* Banner overlay on the thumbnail */
+.card-decision-banner {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 0;
+    letter-spacing: 0.5px;
+}
+
+.banner-keep   { background: rgba(52,211,153,.80);  color: #0a2e20; }
+.banner-reject { background: rgba(248,113,113,.80); color: #3b0000; }
+
+/* ==========================================================================
+   Photographer decision zone
+   ========================================================================== */
+.decision-zone {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--color-border);
+}
+
+.decision-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--color-text-faint);
+}
+
+.decision-buttons {
+    display: flex;
+    gap: 6px;
+}
+
+/* Keep button */
+.btn-keep {
+    flex: 1;
+    background: rgba(52,211,153,.12);
+    color: var(--color-green);
+    border: 1px solid var(--color-green);
+    padding: 5px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 11.5px;
+    font-weight: 600;
+    transition: background var(--transition);
+}
+
+.btn-keep:hover { background: rgba(52,211,153,.28); }
+.btn-keep:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Reject button */
+.btn-reject {
+    flex: 1;
+    background: rgba(248,113,113,.10);
+    color: var(--color-red);
+    border: 1px solid var(--color-red);
+    padding: 5px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 11.5px;
+    font-weight: 600;
+    transition: background var(--transition);
+}
+
+.btn-reject:hover { background: rgba(248,113,113,.24); }
+.btn-reject:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Change-decision button (smaller) */
+.btn-change-decision {
+    font-size: 11px;
+    padding: 3px 9px;
+    flex: none;
+}
+
+/* Decision result chip */
+.decision-chip {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.chip-decided-keep   { background: rgba(52,211,153,.18); color: var(--color-green); }
+.chip-decided-reject { background: rgba(248,113,113,.18); color: var(--color-red); }
+
+/* Inline saving indicator */
+.saving-indicator {
+    font-size: 11px;
+    color: var(--color-text-faint);
+    font-style: italic;
+    margin-left: 6px;
+}
+
+/* ==========================================================================
+   Final selection grid (same card style, just the kept photos)
+   ========================================================================== */
+.final-selection-panel {
+    margin-top: 0;
+}
+
+.final-selection-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 14px;
+    margin-top: 16px;
+}
+
+.final-thumb-card {
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-green);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: 0 0 0 2px rgba(52,211,153,.2);
+}
+
+/* ==========================================================================
+   Batch Action Bar — the main CTA above the gallery
+   ========================================================================== */
+.batch-action-bar {
+    margin-bottom: 14px;
+}
+
+/* "X photos ready for AI analysis" state */
+.batch-action-ready {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    background: linear-gradient(135deg, rgba(108,99,255,.12) 0%, rgba(108,99,255,.05) 100%);
+    border: 1px solid rgba(108,99,255,.35);
+    border-radius: var(--radius-md);
+    padding: 14px 18px;
+}
+
+.batch-action-status {
+    font-size: 13px;
+    color: var(--color-text-muted);
+}
+
+/* Main "Analyse All" button */
+.btn-analyse-all {
+    background: linear-gradient(135deg, var(--color-accent) 0%, #9c69ff 100%);
+    color: #fff;
+    border: none;
+    padding: 10px 22px;
+    border-radius: var(--radius-md);
+    font-size: 13.5px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    transition: opacity var(--transition), transform var(--transition);
+    box-shadow: 0 4px 14px rgba(108,99,255,.35);
+}
+
+.btn-analyse-all:hover  { opacity: 0.88; transform: translateY(-1px); }
+.btn-analyse-all:active { transform: translateY(0); }
+.btn-analyse-all:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* "All analysed" done state */
+.batch-action-done {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(52,211,153,.08);
+    border: 1px solid rgba(52,211,153,.3);
+    border-radius: var(--radius-md);
+    padding: 10px 16px;
+    font-size: 13px;
+    color: var(--color-green);
+    flex-wrap: wrap;
+}
+
+.batch-done-icon {
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.batch-done-hint {
+    font-size: 11.5px;
+    color: var(--color-text-muted);
+    margin-left: auto;
+    font-style: italic;
+}
+
+/* ==========================================================================
+   Batch Progress Panel — shown while analysis runs
+   ========================================================================== */
+.batch-progress-panel {
+    background: rgba(108,99,255,.07);
+    border: 1px solid rgba(108,99,255,.3);
+    border-radius: var(--radius-md);
+    padding: 16px 20px;
+    margin-bottom: 14px;
+}
+
+.batch-progress-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.batch-progress-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-accent);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.batch-progress-label {
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
+
+/* Progress track */
+.batch-progress-track {
+    height: 8px;
+    background: var(--color-surface-2);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.batch-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-accent), #9c69ff);
+    border-radius: 4px;
+    transition: width 0.4s ease;
+}
+
+.batch-checking-list {
+    font-size: 11.5px;
+    color: var(--color-text-faint);
+}
+
+.check-item {
+    display: inline-block;
+    margin-right: 10px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 10.5px;
+}
+
+/* ==========================================================================
+   AI Completion Banner — shown after batch finishes
+   ========================================================================== */
+.batch-complete-panel {
+    background: linear-gradient(135deg, rgba(52,211,153,.07) 0%, rgba(108,99,255,.06) 100%);
+    border: 1px solid rgba(52,211,153,.25);
+    border-radius: var(--radius-md);
+    padding: 16px 20px;
+}
+
+.batch-complete-header {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-green);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+}
+
+.batch-complete-counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+
+.bc-divider {
+    width: 1px;
+    background: var(--color-border);
+    align-self: stretch;
+}
+
+.bc-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.bc-group-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--color-text-faint);
+}
+
+.bc-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.bc-chip {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid transparent;
+}
+
+.bc-keep     { background: rgba(52,211,153,.18);  color: var(--color-green);  border-color: rgba(52,211,153,.4); }
+.bc-review   { background: rgba(251,191,36,.18);  color: var(--color-yellow); border-color: rgba(251,191,36,.4); }
+.bc-selected { background: rgba(52,211,153,.12);  color: var(--color-green); }
+.bc-rejected { background: rgba(248,113,113,.12); color: var(--color-red); }
+.bc-pending-d { background: var(--color-surface); color: var(--color-text-muted); border: 1px dashed var(--color-border); }
+
+.batch-complete-note {
+    font-size: 11px;
+    color: var(--color-text-faint);
+    font-style: italic;
+    margin-top: 8px;
+}
+
+.batch-fail-note {
+    font-size: 11.5px;
+    color: var(--color-yellow);
+    background: rgba(251,191,36,.08);
+    border: 1px solid rgba(251,191,36,.25);
+    border-radius: var(--radius-sm);
+    padding: 6px 10px;
+    margin-top: 8px;
+}
+
+/* ==========================================================================
+   Override note — when photographer overrides the AI recommendation
+   ========================================================================== */
+.override-note {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--color-text-muted);
+    background: rgba(251,191,36,.08);
+    border: 1px solid rgba(251,191,36,.25);
+    border-radius: var(--radius-sm);
+    padding: 4px 8px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+}
+
+.override-note strong { color: var(--color-text); }
+
+.override-badge {
+    background: rgba(251,191,36,.18);
+    color: var(--color-yellow);
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 1px 6px;
+    border-radius: 10px;
+}
+
+/* ==========================================================================
+   Final Selection header (count chip above the grid)
+   ========================================================================== */
+.final-selection-header {
+    grid-column: 1 / -1;
+    margin-bottom: 4px;
+    font-size: 14px;
+}
+
+/* --------------------------------------------------------------------------
+   Create Client / Booking / Event forms
+   -------------------------------------------------------------------------- */
+.create-panel {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 20px 22px;
+    margin-bottom: 20px;
+}
+
+#dashboard-start-panel {
+    margin-bottom: 28px;
+}
+
+.create-panel h2 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.create-panel-hint {
+    font-size: 12.5px;
+    color: var(--color-text-muted);
+    margin-bottom: 14px;
+}
+
+.create-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 16px;
+    align-items: end;
+}
+
+.create-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    letter-spacing: 0.3px;
+}
+
+.create-form-span { grid-column: 1 / -1; }
+
+.create-form input,
+.create-form select,
+.create-form textarea {
+    background: var(--color-bg);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 400;
+}
+
+.create-form input:focus,
+.create-form select:focus,
+.create-form textarea:focus {
+    outline: none;
+    border-color: var(--color-accent);
+}
+
+.create-form textarea { resize: vertical; min-height: 56px; }
+
+.create-form-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: flex-start;
+}
+
+.create-form-actions .btn-open {
+    padding: 8px 18px;
+    font-size: 13px;
+}
+
+.create-form-actions .btn-open:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.create-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.form-error {
+    color: var(--color-red);
+    background: rgba(248,113,113,.08);
+    border: 1px solid rgba(248,113,113,.2);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 13px;
+    margin-top: 12px;
+}
+
+@media (max-width: 768px) {
+    .create-form { grid-template-columns: 1fr; }
+}

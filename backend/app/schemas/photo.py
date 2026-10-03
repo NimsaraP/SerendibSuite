@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Literal
 
 from pydantic import BaseModel
 
@@ -55,7 +55,68 @@ class AnalysisRead(BaseModel):
     # AI recommendation
     ai_recommendation: Optional[str]
 
+    # Photographer decision — set via PATCH /api/photos/{id}/decision
+    photographer_decision: Optional[str]
+
     # Human-readable explanation — returned in API but not in DB
     reason: str
+
+    model_config = {"from_attributes": True}
+
+
+# =============================================================================
+# PhotoWithAnalysis — photo metadata + optional analysis, returned together
+# so the frontend can render the full card in one request.
+# =============================================================================
+class AnalysisSummary(BaseModel):
+    """Lightweight analysis info embedded inside PhotoWithAnalysis."""
+    blur_score: Optional[float]
+    is_blurry: Optional[bool]
+    face_detected: Optional[bool]
+    eyes_status: Optional[str]
+    ai_recommendation: Optional[str]
+    photographer_decision: Optional[str]
+    reason: Optional[str]       # stored as a field-level note on the record
+
+    model_config = {"from_attributes": True}
+
+
+class PhotoWithAnalysis(BaseModel):
+    """
+    Photo metadata with its analysis embedded (analysis may be None if not
+    yet run).  Returned by GET /api/photos/with-analysis?event_id=X.
+    """
+    id: int
+    event_id: int
+    original_filename: str
+    file_size: int
+    created_at: datetime
+    analysis: Optional[AnalysisSummary]
+
+    model_config = {"from_attributes": True}
+
+
+# =============================================================================
+# DecisionRequest — request body for PATCH /api/photos/{id}/decision
+# =============================================================================
+class DecisionRequest(BaseModel):
+    """
+    Photographer decision on a photo.
+    Only "keep" and "reject" are accepted.
+    """
+    decision: Literal["keep", "reject"]
+
+
+# =============================================================================
+# DecisionRead — response body after updating photographer_decision
+# =============================================================================
+class DecisionRead(BaseModel):
+    """
+    Returned after successfully updating photographer_decision.
+    """
+    photo_id: int
+    original_filename: str
+    ai_recommendation: Optional[str]
+    photographer_decision: Optional[str]   # the newly stored value
 
     model_config = {"from_attributes": True}
