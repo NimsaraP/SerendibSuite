@@ -4,6 +4,7 @@ from sqlalchemy import text
 
 from backend.app.database.db import get_db, engine, Base
 from backend.app.api.clients import router as clients_router
+from backend.app.api.bookings import router as bookings_router
 
 # Importing the models package triggers all six model files to load.
 # This registers every table with Base.metadata so create_all() knows
@@ -20,6 +21,7 @@ app = FastAPI(
 # Register feature routers.
 # include_router() mounts all routes from clients.py into the main app.
 app.include_router(clients_router)
+app.include_router(bookings_router)
 
 
 @app.on_event("startup")
