@@ -74,9 +74,10 @@ class AnalysisSummary(BaseModel):
     is_blurry: Optional[bool]
     face_detected: Optional[bool]
     eyes_status: Optional[str]
+    similarity_group: Optional[str] = None
     ai_recommendation: Optional[str]
     photographer_decision: Optional[str]
-    reason: Optional[str]       # stored as a field-level note on the record
+    reason: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

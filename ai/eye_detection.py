@@ -114,22 +114,33 @@ def analyse_eyes(image_path: Path) -> EyeResult:
     Returns:
         EyeResult with face_detected, eyes_status, num_faces, method.
 
-    Never raises — returns a graceful "no_face" result on any error.
+    Tries:
+      1. MediaPipe FaceLandmarker (if available)
+      2. OpenCV YuNet Deep Learning Face Detector (FaceDetectorYN)
+      3. OpenCV Haar cascade fallback
+      4. Safe default (no_face)
     """
     try:
         return _analyse_with_mediapipe(image_path)
     except Exception:
-        # MediaPipe failed for any reason — fall back to Haar cascade.
-        try:
-            return _analyse_with_haar(image_path)
-        except Exception:
-            # If everything fails, return a safe default.
-            return EyeResult(
-                face_detected=False,
-                eyes_status="no_face",
-                num_faces=0,
-                method="error",
-            )
+        pass
+
+    try:
+        return _analyse_with_yunet(image_path)
+    except Exception:
+        pass
+
+    try:
+        return _analyse_with_haar(image_path)
+    except Exception:
+        pass
+
+    return EyeResult(
+        face_detected=False,
+        eyes_status="no_face",
+        num_faces=0,
+        method="fallback",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -197,15 +208,84 @@ def _analyse_with_mediapipe(image_path: Path) -> EyeResult:
 
 
 # ---------------------------------------------------------------------------
-# Haar cascade fallback (no landmarks — coarser result)
+# OpenCV YuNet Deep Learning Face Detector (Fast, accurate, DNN based)
+# ---------------------------------------------------------------------------
+def _analyse_with_yunet(image_path: Path) -> EyeResult:
+    model_path = Path(__file__).parent / "models" / "face_detection_yunet.onnx"
+    if not model_path.exists() or not hasattr(cv2, "FaceDetectorYN"):
+        raise RuntimeError("YuNet model or FaceDetectorYN not available")
+
+    bgr = cv2.imread(str(image_path))
+    if bgr is None:
+        raise ValueError("Could not read image")
+    h, w = bgr.shape[:2]
+
+    detector = cv2.FaceDetectorYN.create(str(model_path), "", (w, h), 0.5, 0.3, 5000)
+    _, faces = detector.detect(bgr)
+
+    num_faces = len(faces) if faces is not None else 0
+    if num_faces == 0:
+        return EyeResult(
+            face_detected=False,
+            eyes_status="no_face",
+            num_faces=0,
+            method="yunet",
+        )
+
+    primary = faces[0]
+    gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+    fw, fh = primary[2], primary[3]
+    eye_radius = max(4, int(fw * 0.08))
+
+    rex, rey = int(primary[4]), int(primary[5])
+    lex, ley = int(primary[6]), int(primary[7])
+
+    def is_eye_open(ex, ey):
+        patch = gray[max(0, ey - eye_radius):min(h, ey + eye_radius), max(0, ex - eye_radius):min(w, ex + eye_radius)]
+        if patch.size == 0:
+            return True
+        contrast = float(np.max(patch) - np.min(patch))
+        std = float(np.std(patch))
+        return contrast >= 40.0 and std >= 16.0
+
+    r_open = is_eye_open(rex, rey)
+    l_open = is_eye_open(lex, ley)
+
+    if r_open and l_open:
+        eyes_status = "open"
+    elif r_open or l_open:
+        eyes_status = "partial"
+    else:
+        eyes_status = "closed"
+
+    return EyeResult(
+        face_detected=True,
+        eyes_status=eyes_status,
+        num_faces=num_faces,
+        method="yunet",
+    )
+
+
+def _get_cascade_path(filename: str) -> str:
+    local_path = Path(__file__).parent / "models" / filename
+    if local_path.exists():
+        return str(local_path)
+    return str(Path(cv2.data.haarcascades) / filename)
+
+
+# ---------------------------------------------------------------------------
+# Haar cascade fallback (face + eye cascade)
 # ---------------------------------------------------------------------------
 def _analyse_with_haar(image_path: Path) -> EyeResult:
+    if not hasattr(cv2, "CascadeClassifier"):
+        raise RuntimeError("CascadeClassifier not available in cv2")
+
     bgr = cv2.imread(str(image_path))
     if bgr is None:
         raise ValueError("Could not read image")
 
     gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
-    cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+    cascade_path = _get_cascade_path("haarcascade_frontalface_default.xml")
     cascade = cv2.CascadeClassifier(cascade_path)
 
     faces = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
@@ -219,10 +299,25 @@ def _analyse_with_haar(image_path: Path) -> EyeResult:
             method="haar",
         )
 
+    # Check eyes with eye cascade
+    eyes_status = "open"
+    eye_cascade_path = _get_cascade_path("haarcascade_eye.xml")
+    eye_cascade = cv2.CascadeClassifier(eye_cascade_path)
+    if not eye_cascade.empty():
+        primary = max(faces, key=lambda f: f[2] * f[3])
+        fx, fy, fw, fh = primary
+        roi_gray = gray[fy : fy + int(fh * 0.6), fx : fx + fw]
+        eyes = eye_cascade.detectMultiScale(roi_gray, scaleFactor=1.1, minNeighbors=3, minSize=(15, 15))
+        if len(eyes) >= 2:
+            eyes_status = "open"
+        elif len(eyes) == 1:
+            eyes_status = "partial"
+        else:
+            eyes_status = "closed"
+
     return EyeResult(
         face_detected=True,
-        # Haar cascade cannot determine eye status — use "open" as safe default.
-        eyes_status="open",
+        eyes_status=eyes_status,
         num_faces=num_faces,
         method="haar",
     )

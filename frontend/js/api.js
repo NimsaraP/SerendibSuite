@@ -6,8 +6,10 @@
  * is defined in exactly one place.
  */
 
-// Change this if your FastAPI server runs on a different port.
-const API_BASE = "http://127.0.0.1:8000";
+// Dynamic backend URL — works on localhost, Wi-Fi LAN IP, and physical phones.
+export const API_BASE = (typeof window !== "undefined" && window.location && window.location.hostname)
+    ? `${window.location.protocol}//${window.location.hostname}:8000`
+    : "http://127.0.0.1:8000";
 
 // ---------------------------------------------------------------------------
 // Generic helper — wraps fetch, checks for HTTP errors, returns parsed JSON.
@@ -42,10 +44,11 @@ function formatApiError(err, response) {
         const parts = detail.map(item => {
             if (typeof item === "string") return item;
             if (item && item.msg) {
+                const cleanMsg = item.msg.replace(/^Value error,\s*/i, "");
                 const field = Array.isArray(item.loc)
                     ? item.loc.filter(p => p !== "body").join(".")
                     : "";
-                return field ? `${field}: ${item.msg}` : item.msg;
+                return field ? `${field}: ${cleanMsg}` : cleanMsg;
             }
             return null;
         }).filter(Boolean);
@@ -173,4 +176,25 @@ export async function setDecision(photoId, decision) {
         method: "PATCH",
         body: JSON.stringify({ decision }),
     });
+}
+
+/**
+ * Fetch near-duplicate / burst photo groups for an event.
+ */
+export async function getBurstGroups(eventId, maxDistance = 10) {
+    return apiFetch(`/api/photos/burst-groups?event_id=${eventId}&max_distance=${maxDistance}`);
+}
+
+/**
+ * Fetch personalization insights and adaptive learning metrics.
+ */
+export async function getPersonalizationInsights() {
+    return apiFetch("/api/photos/personalization-insights");
+}
+
+/**
+ * URL to download the Adobe Lightroom / Photo Mechanic XMP sidecars ZIP.
+ */
+export function xmpExportUrl(eventId) {
+    return `${API_BASE}/api/photos/export-xmp?event_id=${eventId}`;
 }

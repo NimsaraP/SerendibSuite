@@ -6,3 +6,4 @@ from backend.app.models.booking import Booking
 from backend.app.models.event import Event
 from backend.app.models.photo import Photo
 from backend.app.models.photo_analysis import PhotoAnalysis
+from backend.app.models.culling_override import CullingOverride

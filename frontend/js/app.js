@@ -6,6 +6,7 @@
  */
 
 import {
+    API_BASE,
     getClients,
     getBookings,
     getEvents,
@@ -21,6 +22,9 @@ import {
     photoFileUrl,
     analysePhoto,
     setDecision,
+    getBurstGroups,
+    getPersonalizationInsights,
+    xmpExportUrl,
 } from "./api.js";
 
 // ---------------------------------------------------------------------------
@@ -43,12 +47,39 @@ function showSection(sectionId) {
     if (sectionId === "section-events")   loadEvents();
     if (sectionId === "section-clients")  loadClients();
     if (sectionId === "section-bookings") loadBookings();
+    if (sectionId === "section-photos")   loadAllPhotos();
+    if (sectionId === "section-ai-insights") loadPersonalizationInsights();
 }
+
+// Mobile navigation drawer toggle
+const mobileMenuBtn = document.getElementById("btn-mobile-menu");
+const sidebarCloseBtn = document.getElementById("btn-sidebar-close");
+const sidebarBackdrop = document.getElementById("sidebar-backdrop");
+const sidebar = document.getElementById("sidebar");
+
+function openSidebar() {
+    if (sidebar) sidebar.classList.add("open");
+    if (sidebarBackdrop) sidebarBackdrop.classList.add("open");
+    document.body.classList.add("sidebar-open");
+}
+
+function closeSidebar() {
+    if (sidebar) sidebar.classList.remove("open");
+    if (sidebarBackdrop) sidebarBackdrop.classList.remove("open");
+    document.body.classList.remove("sidebar-open");
+}
+
+if (mobileMenuBtn) mobileMenuBtn.addEventListener("click", openSidebar);
+if (sidebarCloseBtn) sidebarCloseBtn.addEventListener("click", closeSidebar);
+if (sidebarBackdrop) sidebarBackdrop.addEventListener("click", closeSidebar);
 
 navLinks.forEach(link => {
     link.addEventListener("click", e => {
         e.preventDefault();
         showSection(link.dataset.section);
+        if (window.innerWidth <= 768) {
+            closeSidebar();
+        }
     });
 });
 
@@ -75,6 +106,50 @@ function formatDate(iso) {
     if (!iso) return "—";
     const d = new Date(iso.length === 10 ? iso + "T00:00:00" : iso);
     return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function formatTime(timeStr) {
+    if (!timeStr) return "";
+    const trimmed = String(timeStr).trim();
+    if (/am|pm/i.test(trimmed)) {
+        return trimmed;
+    }
+    const match = trimmed.match(/^(\d{1,2}):(\d{2})$/);
+    if (match) {
+        let hours = parseInt(match[1], 10);
+        const minutes = match[2];
+        const ampm = hours >= 12 ? "PM" : "AM";
+        hours = hours % 12;
+        if (hours === 0) hours = 12;
+        const strH = String(hours).padStart(2, "0");
+        return `${strH}:${minutes} ${ampm}`;
+    }
+    return trimmed;
+}
+
+function getRelativeScheduleBadge(eventDateIso) {
+    if (!eventDateIso) return "";
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const evDate = new Date(eventDateIso.length === 10 ? eventDateIso + "T00:00:00" : eventDateIso);
+    evDate.setHours(0, 0, 0, 0);
+
+    const diffDays = Math.round((evDate - today) / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+        return `<span class="badge badge-yellow">🔔 TODAY</span>`;
+    }
+    if (diffDays === 1) {
+        return `<span class="badge badge-yellow">⚡ TOMORROW</span>`;
+    }
+    if (diffDays > 1 && diffDays <= 7) {
+        return `<span class="badge badge-blue">⏳ In ${diffDays} days</span>`;
+    }
+    if (diffDays > 7) {
+        return `<span class="badge badge-gray">In ${diffDays} days</span>`;
+    }
+    return `<span class="badge badge-gray">Past (${Math.abs(diffDays)}d ago)</span>`;
 }
 
 function formatBytes(bytes) {
@@ -112,21 +187,54 @@ async function loadDashboard() {
         );
         document.getElementById("stat-upcoming").textContent = upcoming.length;
 
-        const sorted = [...events].sort(
-            (a, b) => new Date(b.event_date) - new Date(a.event_date)
-        ).slice(0, 5);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Separate into upcoming and past events
+        const upcomingEvents = [];
+        const pastEvents = [];
+
+        events.forEach(e => {
+            const evDate = new Date(e.event_date.length === 10 ? e.event_date + "T00:00:00" : e.event_date);
+            evDate.setHours(0, 0, 0, 0);
+            const diffDays = Math.round((evDate - today) / (1000 * 60 * 60 * 24));
+            e._diffDays = diffDays;
+            if (diffDays >= 0 && e.status !== "cancelled") {
+                upcomingEvents.push(e);
+            } else {
+                pastEvents.push(e);
+            }
+        });
+
+        // Sort upcoming: ASCENDING (closest upcoming to today first!)
+        upcomingEvents.sort((a, b) => {
+            if (a._diffDays !== b._diffDays) return a._diffDays - b._diffDays;
+            return (a.event_time || "").localeCompare(b.event_time || "");
+        });
+
+        // Sort past: DESCENDING (most recent past event first)
+        pastEvents.sort((a, b) => new Date(b.event_date) - new Date(a.event_date));
+
+        // Prioritize closest upcoming events, fill with past if less than 5
+        const prioritized = [...upcomingEvents, ...pastEvents].slice(0, 6);
 
         const container = document.getElementById("recent-events-list");
-        if (sorted.length === 0) {
+        if (prioritized.length === 0) {
             container.innerHTML = `<p class="empty-msg">No events yet. Create one to get started.</p>`;
         } else {
-            container.innerHTML = sorted.map(ev => `
+            container.innerHTML = prioritized.map(ev => `
                 <div class="recent-event-item" data-id="${ev.id}">
-                    <div class="rei-name">${ev.name}</div>
+                    <div class="rei-header">
+                        <div class="rei-name">${escapeHtml(ev.name)}</div>
+                        <div class="rei-pills">
+                            ${getRelativeScheduleBadge(ev.event_date)}
+                            ${statusBadge(ev.status)}
+                        </div>
+                    </div>
                     <div class="rei-meta">
-                        <span>${formatDate(ev.event_date)}</span>
-                        <span>${ev.location || "Location TBD"}</span>
-                        ${statusBadge(ev.status)}
+                        <span class="rei-meta-item">📅 ${formatDate(ev.event_date)}</span>
+                        ${ev.event_time ? `<span class="rei-meta-item rei-time">⏰ ${escapeHtml(formatTime(ev.event_time))}</span>` : ""}
+                        <span class="rei-meta-item">📍 ${escapeHtml(ev.location || "Location TBD")}</span>
                     </div>
                 </div>
             `).join("");
@@ -154,25 +262,41 @@ async function loadEvents() {
             container.innerHTML = `<p class="empty-msg">No events yet. Use the form above to create one.</p>`;
             return;
         }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Sort events so closest upcoming events are placed first
+        const sortedEvents = [...events].sort((a, b) => {
+            const dA = new Date(a.event_date.length === 10 ? a.event_date + "T00:00:00" : a.event_date);
+            const dB = new Date(b.event_date.length === 10 ? b.event_date + "T00:00:00" : b.event_date);
+            return dA - dB;
+        });
+
         container.innerHTML = `
             <table class="data-table">
                 <thead>
                     <tr>
                         <th>#</th>
                         <th>Event Name</th>
-                        <th>Date</th>
+                        <th>Date &amp; Time</th>
+                        <th>Timing</th>
                         <th>Location</th>
                         <th>Status</th>
                         <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${events.map(ev => `
+                    ${sortedEvents.map(ev => `
                         <tr>
                             <td>${ev.id}</td>
-                            <td>${ev.name}</td>
-                            <td>${formatDate(ev.event_date)}</td>
-                            <td>${ev.location || "—"}</td>
+                            <td><strong>${escapeHtml(ev.name)}</strong></td>
+                            <td>
+                                <div><strong>${formatDate(ev.event_date)}</strong></div>
+                                ${ev.event_time ? `<div class="event-time-pill">⏰ ${escapeHtml(formatTime(ev.event_time))}</div>` : '<div class="stat-hint">—</div>'}
+                            </td>
+                            <td>${getRelativeScheduleBadge(ev.event_date)}</td>
+                            <td>${escapeHtml(ev.location || "—")}</td>
                             <td>${statusBadge(ev.status)}</td>
                             <td>
                                 <button class="btn-open" data-id="${ev.id}">
@@ -221,9 +345,11 @@ async function openEventDetail(eventId) {
                 <!-- Event info card -->
                 <div class="detail-card">
                     <h3>&#128247; Event Information</h3>
-                    <div class="detail-row"><span>Name</span><strong>${ev.name}</strong></div>
+                    <div class="detail-row"><span>Name</span><strong>${escapeHtml(ev.name)}</strong></div>
                     <div class="detail-row"><span>Date</span><strong>${formatDate(ev.event_date)}</strong></div>
-                    <div class="detail-row"><span>Location</span><strong>${ev.location || "—"}</strong></div>
+                    <div class="detail-row"><span>Time</span><strong>${ev.event_time ? "⏰ " + escapeHtml(formatTime(ev.event_time)) : "—"}</strong></div>
+                    <div class="detail-row"><span>Timing</span>${getRelativeScheduleBadge(ev.event_date)}</div>
+                    <div class="detail-row"><span>Location</span><strong>${escapeHtml(ev.location || "—")}</strong></div>
                     <div class="detail-row"><span>Status</span>${statusBadge(ev.status)}</div>
                     <div class="detail-row"><span>Created</span><strong>${formatDate(ev.created_at)}</strong></div>
                 </div>
@@ -246,12 +372,20 @@ async function openEventDetail(eventId) {
                 <!-- Photos workspace — full width -->
                 <div class="detail-card full-width" id="photos-section">
 
-                    <!-- ── Header row: title + Final Selection ── -->
+                    <!-- ── Header row: title + actions ── -->
                     <div class="photos-header">
                         <h3>&#128444; Photos <span class="photo-count-badge" id="photo-count-badge"></span></h3>
-                        <button class="btn-final-selection" id="btn-final-selection">
-                            &#9733; View Final Selection
-                        </button>
+                        <div class="photos-header-actions" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button class="btn-xmp-export" id="btn-export-xmp" title="Export XMP sidecar files for Adobe Lightroom / Photo Mechanic">
+                                &#128190; Export to Lightroom (XMP)
+                            </button>
+                            <button class="btn-burst-view" id="btn-view-bursts" title="Cluster near-duplicate burst shots and pick best frame">
+                                &#9638; Duplicate Bursts
+                            </button>
+                            <button class="btn-final-selection" id="btn-final-selection">
+                                &#9733; View Final Selection
+                            </button>
+                        </div>
                     </div>
 
                     <!-- ── Summary bar (counts) ── -->
@@ -279,7 +413,7 @@ async function openEventDetail(eventId) {
                     </div>
 
                     <!-- ── Upload bar ── -->
-                    <div class="upload-bar">
+                    <div class="upload-bar" id="upload-dropzone">
                         <label class="btn-upload-label" for="photo-file-input">
                             &#128194; Choose Photos
                         </label>
@@ -293,7 +427,7 @@ async function openEventDetail(eventId) {
                         <button class="btn-upload" id="btn-upload-photos">
                             &#11014; Upload Selected
                         </button>
-                        <span class="upload-file-label" id="upload-file-label">No files selected</span>
+                        <span class="upload-file-label" id="upload-file-label">Select photo or drag &amp; drop here (JPG, PNG up to 50MB)</span>
                     </div>
 
                     <!-- ── Upload progress rows ── -->
@@ -305,13 +439,36 @@ async function openEventDetail(eventId) {
                     </div>
                 </div>
 
+                <!-- Burst / Duplicate Groups panel (hidden by default) -->
+                <div class="detail-card full-width burst-groups-panel" id="burst-groups-panel" style="display:none">
+                    <div class="photos-header">
+                        <div>
+                            <h3>&#9638; Burst &amp; Duplicate Groups</h3>
+                            <p class="create-panel-hint" style="margin: 4px 0 0 0;">Near-duplicate sequences grouped by perceptual similarity (pHash). The AI identifies the top pick frame based on sharpness and eye expression.</p>
+                        </div>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn-back-gallery" id="btn-back-from-bursts">
+                                &#8592; Back to All Photos
+                            </button>
+                        </div>
+                    </div>
+                    <div id="burst-groups-container">
+                        <div class="loading-msg">Analyzing burst sequences&#8230;</div>
+                    </div>
+                </div>
+
                 <!-- Final selection panel (hidden by default) -->
                 <div class="detail-card full-width final-selection-panel" id="final-selection-panel" style="display:none">
                     <div class="photos-header">
                         <h3>&#9733; Final Selection</h3>
-                        <button class="btn-back-gallery" id="btn-back-gallery">
-                            &#8592; Back to Gallery
-                        </button>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn-xmp-export" id="btn-export-xmp-final">
+                                &#128190; Export to Lightroom (XMP)
+                            </button>
+                            <button class="btn-back-gallery" id="btn-back-gallery">
+                                &#8592; Back to Gallery
+                            </button>
+                        </div>
                     </div>
                     <div class="final-selection-grid" id="final-selection-grid">
                         <div class="loading-msg">Loading&#8230;</div>
@@ -320,19 +477,48 @@ async function openEventDetail(eventId) {
             </div>
         `;
 
-        // Wire up file input
+        // Wire up file input & drag and drop
         const fileInput = document.getElementById("photo-file-input");
         const fileLabel = document.getElementById("upload-file-label");
         const uploadBtn = document.getElementById("btn-upload-photos");
+        const dropZone = document.getElementById("upload-dropzone");
 
         fileInput.addEventListener("change", () => {
-            const count = fileInput.files.length;
-            fileLabel.textContent = count === 0
-                ? "No files selected"
-                : `${count} file${count > 1 ? "s" : ""} selected`;
+            if (fileInput.files && fileInput.files.length > 0) {
+                fileLabel.textContent = `${fileInput.files.length} photo${fileInput.files.length > 1 ? "s" : ""} uploading...`;
+                handleUpload(eventId, fileInput.files);
+            }
         });
 
-        uploadBtn.addEventListener("click", () => handleUpload(eventId));
+        uploadBtn.addEventListener("click", () => {
+            if (fileInput.files && fileInput.files.length > 0) {
+                handleUpload(eventId, fileInput.files);
+            } else {
+                fileInput.click();
+            }
+        });
+
+        if (dropZone) {
+            ["dragenter", "dragover"].forEach(evt => {
+                dropZone.addEventListener(evt, e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropZone.classList.add("drag-over");
+                });
+            });
+            ["dragleave", "drop"].forEach(evt => {
+                dropZone.addEventListener(evt, e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropZone.classList.remove("drag-over");
+                });
+            });
+            dropZone.addEventListener("drop", e => {
+                if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    handleUpload(eventId, e.dataTransfer.files);
+                }
+            });
+        }
 
         // Final selection toggle
         document.getElementById("btn-final-selection").addEventListener("click", () => {
@@ -340,8 +526,25 @@ async function openEventDetail(eventId) {
         });
         document.getElementById("btn-back-gallery").addEventListener("click", () => {
             document.getElementById("final-selection-panel").style.display = "none";
+            document.getElementById("burst-groups-panel").style.display = "none";
             document.getElementById("photos-section").style.display = "";
         });
+
+        // Duplicate bursts toggle
+        document.getElementById("btn-view-bursts").addEventListener("click", () => {
+            openBurstGroups(eventId);
+        });
+        document.getElementById("btn-back-from-bursts").addEventListener("click", () => {
+            document.getElementById("burst-groups-panel").style.display = "none";
+            document.getElementById("photos-section").style.display = "";
+        });
+
+        // XMP Export buttons
+        const handleXmpExport = () => {
+            window.location.href = xmpExportUrl(eventId);
+        };
+        document.getElementById("btn-export-xmp").addEventListener("click", handleXmpExport);
+        document.getElementById("btn-export-xmp-final").addEventListener("click", handleXmpExport);
 
         // Load gallery
         await loadPhotoGallery(eventId);
@@ -975,22 +1178,38 @@ async function openFinalSelection(eventId) {
 // ---------------------------------------------------------------------------
 // Handle file upload
 // ---------------------------------------------------------------------------
-async function handleUpload(eventId) {
+async function handleUpload(eventId, filesToUpload = null) {
     const fileInput    = document.getElementById("photo-file-input");
     const progressArea = document.getElementById("upload-progress-area");
-    const files        = Array.from(fileInput.files);
+    const rawFiles     = filesToUpload || (fileInput ? fileInput.files : null);
+    const files        = rawFiles ? Array.from(rawFiles) : [];
 
     if (files.length === 0) {
+        showToast("Please select at least one photo first.", "error");
         progressArea.innerHTML = `<div class="error-msg">&#9888; Please select at least one photo first.</div>`;
         return;
     }
 
-    progressArea.innerHTML = files.map((f, i) => `
-        <div class="upload-row" id="upload-row-${i}">
-            <span class="upload-row-name">${f.name}</span>
-            <span class="upload-row-status status-uploading" id="upload-status-${i}">Uploading&#8230;</span>
-        </div>
-    `).join("");
+    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+    const ALLOWED_EXTS = ["jpg", "jpeg", "png"];
+
+    // Render upload rows with local thumbnail preview
+    progressArea.innerHTML = files.map((f, i) => {
+        let previewSrc = "";
+        try {
+            previewSrc = URL.createObjectURL(f);
+        } catch (_) {}
+
+        return `
+            <div class="upload-row" id="upload-row-${i}">
+                <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
+                    ${previewSrc ? `<img src="${previewSrc}" style="width: 36px; height: 36px; object-fit: cover; border-radius: 4px; border: 1px solid var(--color-border);" />` : ""}
+                    <span class="upload-row-name">${escapeHtml(f.name)} (${formatBytes(f.size)})</span>
+                </div>
+                <span class="upload-row-status status-uploading" id="upload-status-${i}">Uploading&#8230;</span>
+            </div>
+        `;
+    }).join("");
 
     let successCount = 0;
     let failCount    = 0;
@@ -1000,21 +1219,45 @@ async function handleUpload(eventId) {
         const statusEl = document.getElementById(`upload-status-${i}`);
 
         const ext = file.name.split(".").pop().toLowerCase();
-        if (!["jpg", "jpeg", "png"].includes(ext)) {
-            statusEl.textContent = "Not a JPG/PNG";
-            statusEl.className   = "upload-row-status status-error";
+        if (!ALLOWED_EXTS.includes(ext)) {
+            if (statusEl) {
+                statusEl.textContent = "Unsupported format (only JPG/PNG allowed)";
+                statusEl.className   = "upload-row-status status-error";
+            }
+            failCount++;
+            continue;
+        }
+
+        if (file.size === 0) {
+            if (statusEl) {
+                statusEl.textContent = "File is empty (0 bytes)";
+                statusEl.className   = "upload-row-status status-error";
+            }
+            failCount++;
+            continue;
+        }
+
+        if (file.size > MAX_FILE_SIZE) {
+            if (statusEl) {
+                statusEl.textContent = `Exceeds 50MB limit (${formatBytes(file.size)})`;
+                statusEl.className   = "upload-row-status status-error";
+            }
             failCount++;
             continue;
         }
 
         try {
             await uploadPhoto(eventId, file);
-            statusEl.textContent = "Uploaded";
-            statusEl.className   = "upload-row-status status-success";
+            if (statusEl) {
+                statusEl.textContent = "Uploaded \u2713";
+                statusEl.className   = "upload-row-status status-success";
+            }
             successCount++;
         } catch (err) {
-            statusEl.textContent = err.message;
-            statusEl.className   = "upload-row-status status-error";
+            if (statusEl) {
+                statusEl.textContent = err.message;
+                statusEl.className   = "upload-row-status status-error";
+            }
             failCount++;
         }
     }
@@ -1024,11 +1267,23 @@ async function handleUpload(eventId) {
     summary.textContent = `${successCount} uploaded, ${failCount} failed.`;
     progressArea.appendChild(summary);
 
-    fileInput.value = "";
-    document.getElementById("upload-file-label").textContent = "No files selected";
+    if (successCount > 0 && failCount === 0) {
+        showToast(`Successfully uploaded ${successCount} photo${successCount > 1 ? "s" : ""}!`);
+    } else if (successCount > 0 && failCount > 0) {
+        showToast(`Uploaded ${successCount} photos, but ${failCount} failed.`, "error");
+    } else if (failCount > 0) {
+        showToast(`Upload failed for all ${failCount} photos.`, "error");
+    }
+
+    if (fileInput) fileInput.value = "";
+    const labelEl = document.getElementById("upload-file-label");
+    if (labelEl) labelEl.textContent = "Select photo or drag & drop here (JPG, PNG up to 50MB)";
 
     if (successCount > 0) {
         await loadPhotoGallery(eventId);
+        setTimeout(() => {
+            if (progressArea) progressArea.innerHTML = "";
+        }, 2500);
     }
 }
 
@@ -1121,6 +1376,116 @@ function optionalText(value) {
     return trimmed ? trimmed : null;
 }
 
+// ---------------------------------------------------------------------------
+// Form Validation Helpers & Toast UI
+// ---------------------------------------------------------------------------
+function validateClientName(name) {
+    const trimmed = (name || "").trim();
+    if (!trimmed) {
+        return { valid: false, error: "Client name is required." };
+    }
+    if (trimmed.length < 2) {
+        return { valid: false, error: "Client name must be at least 2 characters." };
+    }
+    if (trimmed.length > 100) {
+        return { valid: false, error: "Client name cannot exceed 100 characters." };
+    }
+    if (/\d/.test(trimmed)) {
+        return { valid: false, error: "Client name cannot contain numbers. Only letters are allowed (e.g. Ruwan Perera)." };
+    }
+    if (!/^[A-Za-z\s\.\'\-]+$/.test(trimmed)) {
+        return { valid: false, error: "Client name can only contain letters, spaces, hyphens, and apostrophes." };
+    }
+    return { valid: true, error: null };
+}
+
+function validateClientEmail(email) {
+    const trimmed = (email || "").trim();
+    if (!trimmed) {
+        return { valid: false, error: "Email address is required." };
+    }
+    if (/\s/.test(trimmed)) {
+        return { valid: false, error: "Email address cannot contain spaces." };
+    }
+    const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!re.test(trimmed)) {
+        return { valid: false, error: "Please enter a valid email address (e.g. client@example.com)." };
+    }
+    return { valid: true, error: null };
+}
+
+function validateClientPhone(phone) {
+    if (!phone || !phone.trim()) {
+        return { valid: true, error: null }; // Phone is optional
+    }
+    const trimmed = phone.trim();
+    if (/[a-zA-Z]/.test(trimmed)) {
+        return { valid: false, error: "Phone number cannot contain letters. Numbers only (e.g. +94 77 123 4567)." };
+    }
+    if (!/^\+?[0-9\s\-\(\)]+$/.test(trimmed)) {
+        return { valid: false, error: "Phone number contains invalid characters. Only digits, +, -, and spaces are allowed." };
+    }
+    const digits = trimmed.replace(/[^0-9]/g, "");
+    if (digits.length < 9 || digits.length > 15) {
+        return { valid: false, error: "Phone number must contain between 9 and 15 digits (e.g. +94 77 123 4567)." };
+    }
+    return { valid: true, error: null };
+}
+
+function isValidName(name) {
+    return validateClientName(name).valid;
+}
+
+function isValidEmail(email) {
+    return validateClientEmail(email).valid;
+}
+
+function isValidPhone(phone) {
+    return validateClientPhone(phone).valid;
+}
+
+function setInputError(inputEl, message) {
+    if (!inputEl) return;
+    inputEl.classList.add("input-error");
+    let errEl = inputEl.parentElement.querySelector(".field-error-msg");
+    if (!errEl) {
+        errEl = document.createElement("span");
+        errEl.className = "field-error-msg";
+        inputEl.parentElement.appendChild(errEl);
+    }
+    errEl.textContent = message;
+}
+
+function clearInputError(inputEl) {
+    if (!inputEl) return;
+    inputEl.classList.remove("input-error");
+    const errEl = inputEl.parentElement.querySelector(".field-error-msg");
+    if (errEl) errEl.remove();
+}
+
+function clearAllFormErrors(form) {
+    form.querySelectorAll(".input-error").forEach(el => el.classList.remove("input-error"));
+    form.querySelectorAll(".field-error-msg").forEach(el => el.remove());
+}
+
+function showToast(message, type = "success") {
+    let container = document.getElementById("toast-container");
+    if (!container) {
+        container = document.createElement("div");
+        container.id = "toast-container";
+        document.body.appendChild(container);
+    }
+    const toast = document.createElement("div");
+    toast.className = `toast toast-${type}`;
+    const icon = type === "success" ? "&#10003;" : "&#9888;";
+    toast.innerHTML = `<span class="toast-icon">${icon}</span> <span>${escapeHtml(message)}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.classList.add("fade-out");
+        setTimeout(() => toast.remove(), 400);
+    }, 3800);
+}
+
 function showFormError(elementId, message) {
     const el = document.getElementById(elementId);
     if (!el) return;
@@ -1162,7 +1527,7 @@ async function populateBookingClientSelect() {
             ? String(pendingBookingClientId)
             : select.value;
 
-        select.innerHTML = clients.map(c =>
+        select.innerHTML = `<option value="">-- Choose Client --</option>` + clients.map(c =>
             `<option value="${c.id}">${escapeHtml(c.name)} (${escapeHtml(c.email)})</option>`
         ).join("");
 
@@ -1191,7 +1556,7 @@ async function populateEventBookingSelect() {
             ? String(pendingEventBookingId)
             : select.value;
 
-        select.innerHTML = bookings.map(b =>
+        select.innerHTML = `<option value="">-- Choose Booking --</option>` + bookings.map(b =>
             `<option value="${b.id}">#${b.id} — ${escapeHtml(b.title)} (${formatDate(b.booking_date)})</option>`
         ).join("");
 
@@ -1209,21 +1574,90 @@ async function handleCreateClient(e) {
     e.preventDefault();
     const form = e.currentTarget;
     showFormError("client-form-error", "");
+    clearAllFormErrors(form);
+
+    const nameInput = document.getElementById("client-name");
+    const emailInput = document.getElementById("client-email");
+    const phoneInput = document.getElementById("client-phone");
+    const notesInput = document.getElementById("client-notes");
+
+    const nameVal = nameInput.value.trim();
+    const emailVal = emailInput.value.trim();
+    const phoneVal = phoneInput.value.trim();
+    const notesVal = notesInput.value.trim();
+
+    let hasError = false;
+    let firstErrorEl = null;
+
+    // Validate Name (no digits allowed, letters only)
+    const nameCheck = validateClientName(nameVal);
+    if (!nameCheck.valid) {
+        setInputError(nameInput, nameCheck.error);
+        hasError = true;
+        if (!firstErrorEl) firstErrorEl = nameInput;
+    }
+
+    // Validate Email (proper email format)
+    const emailCheck = validateClientEmail(emailVal);
+    if (!emailCheck.valid) {
+        setInputError(emailInput, emailCheck.error);
+        hasError = true;
+        if (!firstErrorEl) firstErrorEl = emailInput;
+    }
+
+    // Validate Phone (optional, but no letters allowed, 9-15 digits)
+    if (phoneVal) {
+        const phoneCheck = validateClientPhone(phoneVal);
+        if (!phoneCheck.valid) {
+            setInputError(phoneInput, phoneCheck.error);
+            hasError = true;
+            if (!firstErrorEl) firstErrorEl = phoneInput;
+        }
+    }
+
+    // Validate Notes
+    if (notesVal && notesVal.length > 1000) {
+        setInputError(notesInput, "Notes cannot exceed 1000 characters.");
+        hasError = true;
+        if (!firstErrorEl) firstErrorEl = notesInput;
+    }
+
+    if (hasError) {
+        if (firstErrorEl) firstErrorEl.focus();
+        showToast("Please correct the form errors before submitting.", "error");
+        return;
+    }
+
     setFormBusy(form, true);
 
     try {
         const created = await createClient({
-            name: document.getElementById("client-name").value,
-            email: document.getElementById("client-email").value,
-            phone: optionalText(document.getElementById("client-phone").value),
-            notes: optionalText(document.getElementById("client-notes").value),
+            name: nameVal,
+            email: emailVal,
+            phone: optionalText(phoneVal),
+            notes: optionalText(notesVal),
         });
         pendingBookingClientId = created.id;
         form.reset();
+        clearAllFormErrors(form);
+        showToast(`Client "${created.name}" created successfully!`);
         showSection("section-bookings");
     } catch (err) {
-        showFormError("client-form-error", err.message);
+        const msg = err.message || "Failed to create client";
+        showFormError("client-form-error", msg);
+        showToast(msg, "error");
         console.error("[CreateClient]", err);
+        const lower = msg.toLowerCase();
+        if (lower.includes("name")) {
+            setInputError(nameInput, msg);
+            nameInput.focus();
+        } else if (lower.includes("email")) {
+            setInputError(emailInput, msg);
+            emailInput.focus();
+        } else if (lower.includes("phone")) {
+            setInputError(phoneInput, msg);
+            phoneInput.focus();
+        }
     } finally {
         setFormBusy(form, false);
     }
@@ -1233,10 +1667,61 @@ async function handleCreateBooking(e) {
     e.preventDefault();
     const form = e.currentTarget;
     showFormError("booking-form-error", "");
+    clearAllFormErrors(form);
 
-    const clientId = document.getElementById("booking-client").value;
+    const clientSelect = document.getElementById("booking-client");
+    const titleInput = document.getElementById("booking-title");
+    const dateInput = document.getElementById("booking-date");
+    const statusSelect = document.getElementById("booking-status");
+    const notesInput = document.getElementById("booking-notes");
+
+    const clientId = clientSelect.value;
+    const titleVal = titleInput.value.trim();
+    const dateVal = dateInput.value;
+    const notesVal = notesInput.value.trim();
+
+    let hasError = false;
+    let firstErrorEl = null;
+
+    // Validate Client
     if (!clientId) {
-        showFormError("booking-form-error", "Create a client first, then choose them here.");
+        setInputError(clientSelect, "Please select a client for this booking.");
+        hasError = true;
+        if (!firstErrorEl) firstErrorEl = clientSelect;
+    }
+
+    // Validate Title
+    if (!titleVal) {
+        setInputError(titleInput, "Booking title is required (e.g. Wedding Shoot).");
+        hasError = true;
+        if (!firstErrorEl) firstErrorEl = titleInput;
+    } else if (titleVal.length < 3) {
+        setInputError(titleInput, "Booking title must be at least 3 characters.");
+        hasError = true;
+        if (!firstErrorEl) firstErrorEl = titleInput;
+    } else if (titleVal.length > 200) {
+        setInputError(titleInput, "Booking title cannot exceed 200 characters.");
+        hasError = true;
+        if (!firstErrorEl) firstErrorEl = titleInput;
+    }
+
+    // Validate Date
+    if (!dateVal) {
+        setInputError(dateInput, "Booking date is required.");
+        hasError = true;
+        if (!firstErrorEl) firstErrorEl = dateInput;
+    }
+
+    // Validate Notes
+    if (notesVal && notesVal.length > 1000) {
+        setInputError(notesInput, "Notes cannot exceed 1000 characters.");
+        hasError = true;
+        if (!firstErrorEl) firstErrorEl = notesInput;
+    }
+
+    if (hasError) {
+        if (firstErrorEl) firstErrorEl.focus();
+        showToast("Please fill in all required booking fields correctly.", "error");
         return;
     }
 
@@ -1244,19 +1729,23 @@ async function handleCreateBooking(e) {
     try {
         const created = await createBooking({
             client_id: Number(clientId),
-            title: document.getElementById("booking-title").value,
-            booking_date: document.getElementById("booking-date").value,
-            status: document.getElementById("booking-status").value,
-            notes: optionalText(document.getElementById("booking-notes").value),
+            title: titleVal,
+            booking_date: dateVal,
+            status: statusSelect.value,
+            notes: optionalText(notesVal),
         });
         pendingEventBookingId = created.id;
         pendingBookingClientId = null;
         form.reset();
+        clearAllFormErrors(form);
         document.getElementById("booking-date").value = todayLocalIso();
         document.getElementById("booking-status").value = "confirmed";
+        showToast(`Booking "${created.title}" created successfully!`);
         showSection("section-events");
     } catch (err) {
-        showFormError("booking-form-error", err.message);
+        const msg = err.message || "Failed to create booking";
+        showFormError("booking-form-error", msg);
+        showToast(msg, "error");
         console.error("[CreateBooking]", err);
     } finally {
         setFormBusy(form, false);
@@ -1267,10 +1756,63 @@ async function handleCreateEvent(e) {
     e.preventDefault();
     const form = e.currentTarget;
     showFormError("event-form-error", "");
+    clearAllFormErrors(form);
 
-    const bookingId = document.getElementById("event-booking").value;
+    const bookingSelect = document.getElementById("event-booking");
+    const nameInput = document.getElementById("event-name");
+    const dateInput = document.getElementById("event-date");
+    const timeInput = document.getElementById("event-time");
+    const locationInput = document.getElementById("event-location");
+    const statusSelect = document.getElementById("event-status");
+
+    const bookingId = bookingSelect.value;
+    const nameVal = nameInput.value.trim();
+    const dateVal = dateInput.value;
+    const timeVal = timeInput ? timeInput.value.trim() : "";
+    const locationVal = locationInput.value.trim();
+
+    let hasError = false;
+    let firstErrorEl = null;
+
+    // Validate Booking
     if (!bookingId) {
-        showFormError("event-form-error", "Create a booking first, then choose it here.");
+        setInputError(bookingSelect, "Please choose an existing booking.");
+        hasError = true;
+        if (!firstErrorEl) firstErrorEl = bookingSelect;
+    }
+
+    // Validate Name
+    if (!nameVal) {
+        setInputError(nameInput, "Event name is required (e.g. Ceremony, Reception).");
+        hasError = true;
+        if (!firstErrorEl) firstErrorEl = nameInput;
+    } else if (nameVal.length < 2) {
+        setInputError(nameInput, "Event name must be at least 2 characters.");
+        hasError = true;
+        if (!firstErrorEl) firstErrorEl = nameInput;
+    } else if (nameVal.length > 200) {
+        setInputError(nameInput, "Event name cannot exceed 200 characters.");
+        hasError = true;
+        if (!firstErrorEl) firstErrorEl = nameInput;
+    }
+
+    // Validate Date
+    if (!dateVal) {
+        setInputError(dateInput, "Event date is required.");
+        hasError = true;
+        if (!firstErrorEl) firstErrorEl = dateInput;
+    }
+
+    // Validate Location
+    if (locationVal && locationVal.length > 255) {
+        setInputError(locationInput, "Location cannot exceed 255 characters.");
+        hasError = true;
+        if (!firstErrorEl) firstErrorEl = locationInput;
+    }
+
+    if (hasError) {
+        if (firstErrorEl) firstErrorEl.focus();
+        showToast("Please fill in all required event fields correctly.", "error");
         return;
     }
 
@@ -1278,21 +1820,293 @@ async function handleCreateEvent(e) {
     try {
         const created = await createEvent({
             booking_id: Number(bookingId),
-            name: document.getElementById("event-name").value,
-            event_date: document.getElementById("event-date").value,
-            location: optionalText(document.getElementById("event-location").value),
-            status: document.getElementById("event-status").value,
+            name: nameVal,
+            event_date: dateVal,
+            event_time: optionalText(timeVal),
+            location: optionalText(locationVal),
+            status: statusSelect.value,
         });
         pendingEventBookingId = null;
         form.reset();
+        clearAllFormErrors(form);
         document.getElementById("event-date").value = todayLocalIso();
+        if (timeInput) timeInput.value = "10:00";
         document.getElementById("event-status").value = "scheduled";
+        showToast(`Event "${created.name}" created successfully!`);
         await openEventDetail(created.id);
     } catch (err) {
-        showFormError("event-form-error", err.message);
+        const msg = err.message || "Failed to create event";
+        showFormError("event-form-error", msg);
+        showToast(msg, "error");
         console.error("[CreateEvent]", err);
     } finally {
         setFormBusy(form, false);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Burst & Duplicate Groups view
+// ---------------------------------------------------------------------------
+async function openBurstGroups(eventId) {
+    const panel = document.getElementById("burst-groups-panel");
+    const container = document.getElementById("burst-groups-container");
+    const photosSection = document.getElementById("photos-section");
+    const finalSection = document.getElementById("final-selection-panel");
+
+    photosSection.style.display = "none";
+    finalSection.style.display = "none";
+    panel.style.display = "";
+    container.innerHTML = `<div class="loading-msg">Analyzing burst sequences with perceptual hashing&#8230;</div>`;
+
+    try {
+        const data = await getBurstGroups(eventId);
+        if (!data.groups || data.groups.length === 0) {
+            container.innerHTML = `
+                <div class="photo-empty-state">
+                    <div class="photo-empty-icon">&#9638;</div>
+                    <p><strong>No duplicate burst sequences detected.</strong></p>
+                    <p class="upload-hint">
+                        All analysed photos have distinct compositions (Hamming distance &gt; 10).
+                        Ensure photos are analysed with AI so perceptual hashes are registered.
+                    </p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="burst-summary-banner">
+                <span>Detected <strong>${data.burst_group_count}</strong> burst sequence${data.burst_group_count > 1 ? 's' : ''} (${data.total_burst_photos} total near-duplicate photos).</span>
+                <span class="burst-hint">The AI identified the top pick frame based on sharpness score and open eyes.</span>
+            </div>
+            ${data.groups.map(g => `
+                <div class="burst-group-card" id="burst-group-${g.group_id}">
+                    <div class="burst-group-header">
+                        <div class="bgh-title">
+                            <span class="burst-badge">Burst #${g.group_id}</span>
+                            <span>${g.count} near-duplicate frames</span>
+                        </div>
+                        <button class="btn-keep-best" data-group-id="${g.group_id}" data-pick-id="${g.top_pick_id}">
+                            &#9733; Keep Top Pick &amp; Reject Others
+                        </button>
+                    </div>
+                    <div class="burst-photos-grid">
+                        ${g.photos.map(p => {
+                            const isTop = p.is_top_pick;
+                            const dec = p.analysis?.photographer_decision;
+                            let cardStyle = isTop ? "burst-photo-item top-pick-frame" : "burst-photo-item";
+                            return `
+                                <div class="${cardStyle}" id="burst-card-${p.id}">
+                                    <div class="photo-thumb-wrap">
+                                        <img src="${photoFileUrl(p.id)}" alt="${p.original_filename}" loading="lazy" />
+                                        ${isTop ? '<div class="top-pick-badge">&#9733; AI TOP PICK</div>' : ''}
+                                        ${dec === 'keep' ? '<div class="card-decision-banner banner-keep">&#10003; Selected</div>' : ''}
+                                        ${dec === 'reject' ? '<div class="card-decision-banner banner-reject">&#10007; Rejected</div>' : ''}
+                                    </div>
+                                    <div class="burst-photo-info">
+                                        <div class="burst-filename" title="${p.original_filename}">${p.original_filename}</div>
+                                        <div class="burst-stats">
+                                            <span>&#128269; Sharpness: ${p.analysis?.blur_score ? p.analysis.blur_score.toFixed(1) : '—'}</span>
+                                            <span>&#128065; Eyes: ${p.analysis?.eyes_status || '—'}</span>
+                                        </div>
+                                        <div class="burst-btn-group">
+                                            <button class="btn-decision btn-keep btn-sm" data-photo-id="${p.id}" data-decision="keep">&#10003; Keep</button>
+                                            <button class="btn-decision btn-reject btn-sm" data-photo-id="${p.id}" data-decision="reject">&#10007; Reject</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join("")}
+                    </div>
+                </div>
+            `).join("")}
+        `;
+
+        // Wire 1-click batch pick & reject
+        container.querySelectorAll(".btn-keep-best").forEach(btn => {
+            btn.addEventListener("click", async () => {
+                const groupId = parseInt(btn.dataset.groupId);
+                const pickId = parseInt(btn.dataset.pickId);
+                const group = data.groups.find(g => g.group_id === groupId);
+                if (!group) return;
+
+                btn.disabled = true;
+                btn.textContent = "Applying decisions…";
+
+                for (const p of group.photos) {
+                    const dec = (p.id === pickId) ? "keep" : "reject";
+                    try {
+                        await setDecision(p.id, dec);
+                    } catch (_) {}
+                }
+
+                btn.textContent = "✓ Applied!";
+                setTimeout(() => openBurstGroups(eventId), 600);
+            });
+        });
+
+        // Wire individual buttons inside burst
+        container.querySelectorAll(".btn-decision").forEach(btn => {
+            btn.addEventListener("click", async () => {
+                const pid = parseInt(btn.dataset.photoId);
+                const dec = btn.dataset.decision;
+                btn.disabled = true;
+                try {
+                    await setDecision(pid, dec);
+                    openBurstGroups(eventId);
+                } catch (e) {
+                    alert("Error setting decision: " + e.message);
+                }
+            });
+        });
+
+    } catch (err) {
+        container.innerHTML = `<div class="error-msg">&#9888; Failed to calculate burst groups: ${err.message}</div>`;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Personalization Insights view
+// ---------------------------------------------------------------------------
+async function loadPersonalizationInsights() {
+    try {
+        const data = await getPersonalizationInsights();
+
+        document.getElementById("stat-learned-threshold").textContent = data.learned_blur_threshold.toFixed(1);
+        const deltaEl = document.getElementById("stat-threshold-delta");
+        if (deltaEl) {
+            const d = data.blur_adjustment_delta;
+            deltaEl.textContent = d === 0
+                ? "At default baseline (100.0)"
+                : `${d > 0 ? '+' : ''}${d} vs baseline (100.0)`;
+        }
+
+        document.getElementById("stat-total-overrides").textContent = data.total_overrides;
+        document.getElementById("stat-convergence").textContent = data.personalization_convergence;
+        document.getElementById("stat-artistic-style").textContent = data.soft_focus_preference;
+        const eyeKeepsEl = document.getElementById("stat-eye-keeps");
+        if (eyeKeepsEl) {
+            eyeKeepsEl.textContent = `Closed-eye keeps: ${data.emotional_closed_eye_keeps}`;
+        }
+
+        const summaryEl = document.getElementById("personalization-summary-text");
+        if (summaryEl) summaryEl.textContent = data.summary_insight;
+
+        const tableContainer = document.getElementById("overrides-history-list");
+        if (!tableContainer) return;
+
+        if (!data.recent_overrides || data.recent_overrides.length === 0) {
+            tableContainer.innerHTML = `<p class="empty-msg">No overrides logged yet. Whenever you choose KEEP on a photo the AI flagged as REVIEW (or vice-versa), the system logs it here and trains your preferences.</p>`;
+            return;
+        }
+
+        tableContainer.innerHTML = `
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Photo ID</th>
+                        <th>AI Recommendation</th>
+                        <th>Photographer Choice</th>
+                        <th>Sharpness (Score)</th>
+                        <th>Eyes Status</th>
+                        <th>Logged At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.recent_overrides.map(o => `
+                        <tr>
+                            <td>${o.id}</td>
+                            <td>#${o.photo_id}</td>
+                            <td><span class="badge ${o.ai_recommendation === 'keep' ? 'badge-green' : 'badge-yellow'}">${o.ai_recommendation.toUpperCase()}</span></td>
+                            <td><span class="badge ${o.photographer_decision === 'keep' ? 'badge-blue' : 'badge-red'}">${o.photographer_decision.toUpperCase()}</span></td>
+                            <td>${o.blur_score !== null ? o.blur_score : '—'}</td>
+                            <td>${o.eyes_status || '—'}</td>
+                            <td>${o.created_at}</td>
+                        </tr>
+                    `).join("")}
+                </tbody>
+            </table>
+        `;
+    } catch (err) {
+        showError("overrides-history-list", err.message);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// All Photos Global view
+// ---------------------------------------------------------------------------
+async function loadAllPhotos() {
+    const container = document.getElementById("all-photos-list");
+    showLoading("all-photos-list");
+    try {
+        const events = await getEvents();
+        if (events.length === 0) {
+            container.innerHTML = `<p class="empty-msg">No events found yet. Create an event and upload photos first.</p>`;
+            return;
+        }
+
+        let allPhotos = [];
+        for (const ev of events) {
+            try {
+                const photos = await getPhotosWithAnalysis(ev.id);
+                photos.forEach(p => p.eventName = ev.name);
+                allPhotos.push(...photos);
+            } catch (_) {}
+        }
+
+        if (allPhotos.length === 0) {
+            container.innerHTML = `<p class="empty-msg">No photos uploaded yet across any events.</p>`;
+            return;
+        }
+
+        container.innerHTML = `
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Preview</th>
+                        <th>Filename</th>
+                        <th>Event</th>
+                        <th>Size</th>
+                        <th>AI Recommendation</th>
+                        <th>Decision</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${allPhotos.map(p => `
+                        <tr>
+                            <td>
+                                <img src="${photoFileUrl(p.id)}" style="width:48px;height:48px;object-fit:cover;border-radius:4px;" onerror="this.style.display='none'" />
+                            </td>
+                            <td><strong>${p.original_filename}</strong></td>
+                            <td>${p.eventName}</td>
+                            <td>${formatBytes(p.file_size)}</td>
+                            <td>
+                                ${p.analysis?.ai_recommendation
+                                    ? `<span class="badge ${p.analysis.ai_recommendation === 'keep' ? 'badge-green' : 'badge-yellow'}">${p.analysis.ai_recommendation.toUpperCase()}</span>`
+                                    : '<span class="badge badge-gray">Not analysed</span>'}
+                            </td>
+                            <td>
+                                ${p.analysis?.photographer_decision
+                                    ? `<span class="badge ${p.analysis.photographer_decision === 'keep' ? 'badge-blue' : 'badge-red'}">${p.analysis.photographer_decision.toUpperCase()}</span>`
+                                    : '<span class="badge badge-gray">Pending</span>'}
+                            </td>
+                            <td>
+                                <button class="btn-open btn-sm" data-event-id="${p.event_id}">Open Event</button>
+                            </td>
+                        </tr>
+                    `).join("")}
+                </tbody>
+            </table>
+        `;
+
+        container.querySelectorAll(".btn-open").forEach(btn => {
+            btn.addEventListener("click", () => openEventDetail(btn.dataset.eventId));
+        });
+
+    } catch (err) {
+        showError("all-photos-list", err.message);
     }
 }
 
@@ -1305,10 +2119,87 @@ function wireCreateForms() {
     if (bookingForm) bookingForm.addEventListener("submit", handleCreateBooking);
     if (eventForm) eventForm.addEventListener("submit", handleCreateEvent);
 
+    // Live validation for Client Name (strictly reject numbers)
+    const clientNameInput = document.getElementById("client-name");
+    if (clientNameInput) {
+        clientNameInput.addEventListener("input", () => {
+            const val = clientNameInput.value;
+            if (/\d/.test(val)) {
+                setInputError(clientNameInput, "Client name cannot contain numbers. Only letters are allowed.");
+            } else if (val && !/^[A-Za-z\s\.\'\-]*$/.test(val)) {
+                setInputError(clientNameInput, "Client name can only contain letters, spaces, hyphens, and apostrophes.");
+            } else {
+                clearInputError(clientNameInput);
+            }
+        });
+        clientNameInput.addEventListener("blur", () => {
+            const val = clientNameInput.value.trim();
+            if (val) {
+                const check = validateClientName(val);
+                if (!check.valid) setInputError(clientNameInput, check.error);
+            }
+        });
+    }
+
+    // Live validation for Client Phone (strictly reject letters)
+    const clientPhoneInput = document.getElementById("client-phone");
+    if (clientPhoneInput) {
+        clientPhoneInput.addEventListener("input", () => {
+            const val = clientPhoneInput.value;
+            if (/[a-zA-Z]/.test(val)) {
+                setInputError(clientPhoneInput, "Phone number cannot contain letters. Numbers only (e.g. +94 77 123 4567).");
+            } else if (val && !/^\+?[0-9\s\-\(\)]*$/.test(val)) {
+                setInputError(clientPhoneInput, "Phone number contains invalid characters. Numbers, +, -, and spaces only.");
+            } else {
+                clearInputError(clientPhoneInput);
+            }
+        });
+        clientPhoneInput.addEventListener("blur", () => {
+            const val = clientPhoneInput.value.trim();
+            if (val) {
+                const check = validateClientPhone(val);
+                if (!check.valid) setInputError(clientPhoneInput, check.error);
+            }
+        });
+    }
+
+    // Live validation for Client Email
+    const clientEmailInput = document.getElementById("client-email");
+    if (clientEmailInput) {
+        clientEmailInput.addEventListener("input", () => {
+            const val = clientEmailInput.value;
+            if (/\s/.test(val)) {
+                setInputError(clientEmailInput, "Email address cannot contain spaces.");
+            } else {
+                clearInputError(clientEmailInput);
+            }
+        });
+        clientEmailInput.addEventListener("blur", () => {
+            const val = clientEmailInput.value.trim();
+            if (val) {
+                const check = validateClientEmail(val);
+                if (!check.valid) setInputError(clientEmailInput, check.error);
+            }
+        });
+    }
+
+    // Generic clear errors for other fields on input
+    [clientForm, bookingForm, eventForm].forEach(form => {
+        if (!form) return;
+        form.querySelectorAll("input, select, textarea").forEach(field => {
+            if (field !== clientNameInput && field !== clientPhoneInput && field !== clientEmailInput) {
+                field.addEventListener("input", () => clearInputError(field));
+                field.addEventListener("change", () => clearInputError(field));
+            }
+        });
+    });
+
     const bookingDate = document.getElementById("booking-date");
     const eventDate = document.getElementById("event-date");
+    const eventTime = document.getElementById("event-time");
     if (bookingDate && !bookingDate.value) bookingDate.value = todayLocalIso();
     if (eventDate && !eventDate.value) eventDate.value = todayLocalIso();
+    if (eventTime && !eventTime.value) eventTime.value = "10:00";
 
     const dashClient = document.getElementById("dash-goto-client");
     const dashBooking = document.getElementById("dash-goto-booking");
@@ -1318,8 +2209,33 @@ function wireCreateForms() {
     if (dashEvent) dashEvent.addEventListener("click", () => showSection("section-events"));
 }
 
+async function updateApiStatus() {
+    const dot = document.getElementById("api-dot");
+    const mobileDot = document.getElementById("mobile-api-dot");
+    const text = document.getElementById("api-status-text");
+    if (!dot || !text) return;
+    try {
+        const res = await fetch(`${API_BASE}/api/health`);
+        if (res.ok) {
+            dot.className = "status-dot online";
+            if (mobileDot) mobileDot.className = "status-dot online";
+            text.textContent = "API Online";
+        } else {
+            dot.className = "status-dot offline";
+            if (mobileDot) mobileDot.className = "status-dot offline";
+            text.textContent = "API Offline";
+        }
+    } catch (_) {
+        dot.className = "status-dot offline";
+        if (mobileDot) mobileDot.className = "status-dot offline";
+        text.textContent = "API Offline";
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Bootstrap
 // ---------------------------------------------------------------------------
 wireCreateForms();
+updateApiStatus();
+setInterval(updateApiStatus, 15000);
 showSection("section-dashboard");
