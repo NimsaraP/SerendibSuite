@@ -170,8 +170,12 @@
                 <label>
                     Event date
                     <div class="input-with-presets">
-                        <input type="date" id="event-date" name="event_date" required />
+                        <div class="picker-input-wrap">
+                            <input type="date" id="event-date" name="event_date" required />
+                            <button type="button" class="btn-picker-trigger" data-open-picker="event-date" title="Open Calendar" tabindex="-1">📅</button>
+                        </div>
                         <div class="quick-chips">
+                            <button type="button" class="btn-chip btn-chip-calendar" data-open-picker="event-date">📅 Pick Date</button>
                             <button type="button" class="btn-chip" data-set-date="event-date" data-days="0">Today</button>
                             <button type="button" class="btn-chip" data-set-date="event-date" data-days="1">Tomorrow</button>
                             <button type="button" class="btn-chip" data-set-date="event-date" data-days="7">+1 Wk</button>
@@ -182,8 +186,12 @@
                 <label>
                     Event time
                     <div class="input-with-presets">
-                        <input type="time" id="event-time" name="event_time" value="10:00" required />
+                        <div class="picker-input-wrap">
+                            <input type="time" id="event-time" name="event_time" value="10:00" required />
+                            <button type="button" class="btn-picker-trigger" data-open-picker="event-time" title="Open Time Clock" tabindex="-1">⏰</button>
+                        </div>
                         <div class="quick-chips">
+                            <button type="button" class="btn-chip btn-chip-calendar" data-open-picker="event-time">⏰ Pick Time</button>
                             <button type="button" class="btn-chip" data-set-time="event-time" data-val="07:30">07:30 AM</button>
                             <button type="button" class="btn-chip" data-set-time="event-time" data-val="10:00">10:00 AM</button>
                             <button type="button" class="btn-chip" data-set-time="event-time" data-val="14:00">02:00 PM</button>
@@ -198,12 +206,20 @@
                 </label>
                 <label>
                     Status
-                    <select id="event-status" name="status">
-                        <option value="scheduled" selected>scheduled</option>
-                        <option value="in_progress">in_progress</option>
-                        <option value="completed">completed</option>
-                        <option value="cancelled">cancelled</option>
-                    </select>
+                    <div class="input-with-presets">
+                        <select id="event-status" name="status">
+                            <option value="scheduled" selected>scheduled</option>
+                            <option value="in_progress">in_progress</option>
+                            <option value="completed">completed</option>
+                            <option value="cancelled">cancelled</option>
+                        </select>
+                        <div class="quick-chips">
+                            <button type="button" class="btn-chip" data-set-status="event-status" data-val="scheduled">Scheduled</button>
+                            <button type="button" class="btn-chip" data-set-status="event-status" data-val="in_progress">In Progress</button>
+                            <button type="button" class="btn-chip" data-set-status="event-status" data-val="completed">Completed</button>
+                            <button type="button" class="btn-chip" data-set-status="event-status" data-val="cancelled">Cancelled</button>
+                        </div>
+                    </div>
                 </label>
                 <div class="create-form-actions">
                     <button type="submit" class="btn-open" id="btn-create-event">Create Event</button>
@@ -217,7 +233,10 @@
         <div class="filter-toolbar">
             <div class="filter-group">
                 <label for="filter-event-date" class="filter-label">📅 Date:</label>
-                <input type="date" id="filter-event-date" class="filter-input" title="Filter by specific event date" />
+                <div class="picker-input-wrap">
+                    <input type="date" id="filter-event-date" class="filter-input" title="Filter by specific event date" />
+                    <button type="button" class="btn-picker-trigger" data-open-picker="filter-event-date" title="Open Calendar" tabindex="-1">📅</button>
+                </div>
             </div>
             <div class="filter-group">
                 <label for="filter-event-time" class="filter-label">⏰ Time Slot:</label>
@@ -305,7 +324,10 @@
         <div class="filter-toolbar">
             <div class="filter-group">
                 <label for="filter-client-date" class="filter-label">📅 Added Date:</label>
-                <input type="date" id="filter-client-date" class="filter-input" title="Filter clients added on a specific date" />
+                <div class="picker-input-wrap">
+                    <input type="date" id="filter-client-date" class="filter-input" title="Filter clients added on a specific date" />
+                    <button type="button" class="btn-picker-trigger" data-open-picker="filter-client-date" title="Open Calendar" tabindex="-1">📅</button>
+                </div>
             </div>
             <div class="filter-group filter-group-grow">
                 <label for="filter-client-search" class="filter-label">🔍 Search:</label>
@@ -351,8 +373,12 @@
                 <label>
                     Booking date
                     <div class="input-with-presets">
-                        <input type="date" id="booking-date" name="booking_date" required />
+                        <div class="picker-input-wrap">
+                            <input type="date" id="booking-date" name="booking_date" required />
+                            <button type="button" class="btn-picker-trigger" data-open-picker="booking-date" title="Open Calendar" tabindex="-1">📅</button>
+                        </div>
                         <div class="quick-chips">
+                            <button type="button" class="btn-chip btn-chip-calendar" data-open-picker="booking-date">📅 Pick Date</button>
                             <button type="button" class="btn-chip" data-set-date="booking-date" data-days="0">Today</button>
                             <button type="button" class="btn-chip" data-set-date="booking-date" data-days="1">Tomorrow</button>
                             <button type="button" class="btn-chip" data-set-date="booking-date" data-days="7">+1 Wk</button>
@@ -362,12 +388,20 @@
                 </label>
                 <label>
                     Status
-                    <select id="booking-status" name="status">
-                        <option value="enquiry">enquiry</option>
-                        <option value="confirmed" selected>confirmed</option>
-                        <option value="completed">completed</option>
-                        <option value="cancelled">cancelled</option>
-                    </select>
+                    <div class="input-with-presets">
+                        <select id="booking-status" name="status">
+                            <option value="confirmed" selected>confirmed</option>
+                            <option value="enquiry">enquiry</option>
+                            <option value="completed">completed</option>
+                            <option value="cancelled">cancelled</option>
+                        </select>
+                        <div class="quick-chips">
+                            <button type="button" class="btn-chip" data-set-status="booking-status" data-val="confirmed">Confirmed</button>
+                            <button type="button" class="btn-chip" data-set-status="booking-status" data-val="enquiry">Enquiry</button>
+                            <button type="button" class="btn-chip" data-set-status="booking-status" data-val="completed">Completed</button>
+                            <button type="button" class="btn-chip" data-set-status="booking-status" data-val="cancelled">Cancelled</button>
+                        </div>
+                    </div>
                 </label>
                 <label class="create-form-span">
                     Notes
@@ -385,7 +419,10 @@
         <div class="filter-toolbar">
             <div class="filter-group">
                 <label for="filter-booking-date" class="filter-label">📅 Booking Date:</label>
-                <input type="date" id="filter-booking-date" class="filter-input" title="Filter by booking date" />
+                <div class="picker-input-wrap">
+                    <input type="date" id="filter-booking-date" class="filter-input" title="Filter by booking date" />
+                    <button type="button" class="btn-picker-trigger" data-open-picker="filter-booking-date" title="Open Calendar" tabindex="-1">📅</button>
+                </div>
             </div>
             <div class="filter-group">
                 <label for="filter-booking-status" class="filter-label">🏷️ Status:</label>

@@ -1684,6 +1684,14 @@ function updateChipState(input) {
                 chip.classList.add("active");
             }
         });
+    } else if (input.tagName === "SELECT") {
+        const val = (input.value || "").trim();
+        if (!val) return;
+        chips.forEach(chip => {
+            if (chip.dataset.val === val) {
+                chip.classList.add("active");
+            }
+        });
     }
 }
 
@@ -2834,6 +2842,9 @@ function wireCreateForms() {
     const bookingDate = document.getElementById("booking-date");
     const eventDate = document.getElementById("event-date");
     const eventTime = document.getElementById("event-time");
+    const bookingStatus = document.getElementById("booking-status");
+    const eventStatus = document.getElementById("event-status");
+
     if (bookingDate && !bookingDate.value) bookingDate.value = todayLocalIso();
     if (eventDate && !eventDate.value) eventDate.value = todayLocalIso();
     if (eventTime && !eventTime.value) eventTime.value = "10:00";
@@ -2875,6 +2886,64 @@ function wireCreateForms() {
         });
     });
 
+    // Preset chip listeners for status fields (booking-status, event-status)
+    document.querySelectorAll("button.btn-chip[data-set-status]").forEach(chip => {
+        chip.addEventListener("click", () => {
+            const targetId = chip.dataset.setStatus;
+            const targetSelect = document.getElementById(targetId);
+            if (!targetSelect) return;
+            const statusVal = chip.dataset.val;
+            if (statusVal) {
+                targetSelect.value = statusVal;
+                targetSelect.dispatchEvent(new Event("change", { bubbles: true }));
+                updateChipState(targetSelect);
+            }
+        });
+    });
+
+    // Interactive Calendar & Time Picker: click anywhere on date/time inputs to open picker
+    document.querySelectorAll('input[type="date"], input[type="time"]').forEach(input => {
+        input.addEventListener("click", function(e) {
+            try {
+                if (typeof this.showPicker === "function") {
+                    this.showPicker();
+                }
+            } catch (_) {}
+        });
+        input.addEventListener("keydown", function(e) {
+            if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
+                try {
+                    if (typeof this.showPicker === "function") {
+                        e.preventDefault();
+                        this.showPicker();
+                    }
+                } catch (_) {}
+            }
+        });
+    });
+
+    // Explicit [data-open-picker] triggers (buttons & chips)
+    document.querySelectorAll("[data-open-picker]").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const targetId = btn.dataset.openPicker;
+            const target = document.getElementById(targetId);
+            if (!target) return;
+            try {
+                if (typeof target.showPicker === "function") {
+                    target.showPicker();
+                    return;
+                }
+            } catch (_) {}
+            if (target.type === "date") {
+                showCustomCalendar(target);
+            } else {
+                target.focus();
+            }
+        });
+    });
+
     // Sync chip highlights on manual input changes & initialize state
     [bookingDate, eventDate, eventTime].forEach(input => {
         if (!input) return;
@@ -2883,12 +2952,149 @@ function wireCreateForms() {
         updateChipState(input);
     });
 
+    [bookingStatus, eventStatus].forEach(sel => {
+        if (!sel) return;
+        sel.addEventListener("change", () => updateChipState(sel));
+        updateChipState(sel);
+    });
+
     const dashClient = document.getElementById("dash-goto-client");
     const dashBooking = document.getElementById("dash-goto-booking");
     const dashEvent = document.getElementById("dash-goto-event");
     if (dashClient) dashClient.addEventListener("click", () => showSection("section-clients"));
     if (dashBooking) dashBooking.addEventListener("click", () => showSection("section-bookings"));
     if (dashEvent) dashEvent.addEventListener("click", () => showSection("section-events"));
+}
+
+// ---------------------------------------------------------------------------
+// Standalone / Fallback Interactive Calendar Popover
+// ---------------------------------------------------------------------------
+let _activeCalendarPopover = null;
+
+function closeCustomCalendar() {
+    if (_activeCalendarPopover) {
+        _activeCalendarPopover.remove();
+        _activeCalendarPopover = null;
+    }
+}
+
+function showCustomCalendar(targetInput) {
+    if (!targetInput) return;
+    closeCustomCalendar();
+
+    let curDate = new Date();
+    if (targetInput.value && /^\d{4}-\d{2}-\d{2}$/.test(targetInput.value)) {
+        const parts = targetInput.value.split("-").map(Number);
+        curDate = new Date(parts[0], parts[1] - 1, parts[2]);
+    }
+
+    let viewYear = curDate.getFullYear();
+    let viewMonth = curDate.getMonth();
+
+    const popover = document.createElement("div");
+    popover.className = "custom-cal-popover";
+    document.body.appendChild(popover);
+    _activeCalendarPopover = popover;
+
+    const rect = targetInput.getBoundingClientRect();
+    popover.style.top = `${window.scrollY + rect.bottom + 4}px`;
+    popover.style.left = `${Math.max(10, window.scrollX + rect.left)}px`;
+
+    function renderMonth(y, m) {
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        const firstDayIdx = new Date(y, m, 1).getDay();
+        const daysInMonth = new Date(y, m + 1, 0).getDate();
+
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+        const selectedVal = targetInput.value || "";
+
+        let html = `
+            <div class="cal-nav">
+                <button type="button" class="cal-nav-btn" id="cal-prev">&#9664;</button>
+                <span class="cal-nav-title">${monthNames[m]} ${y}</span>
+                <button type="button" class="cal-nav-btn" id="cal-next">&#9654;</button>
+            </div>
+            <div class="cal-weekdays">
+                <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+            </div>
+            <div class="cal-days-grid">
+        `;
+
+        for (let i = 0; i < firstDayIdx; i++) {
+            html += `<div class="cal-day-cell cal-empty"></div>`;
+        }
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+            let cellCls = "cal-day-cell";
+            if (dateStr === todayStr) cellCls += " cal-today";
+            if (dateStr === selectedVal) cellCls += " cal-selected";
+            html += `<div class="${cellCls}" data-cal-date="${dateStr}">${d}</div>`;
+        }
+
+        html += `
+            </div>
+            <div class="cal-footer">
+                <button type="button" class="cal-footer-btn" id="cal-today-btn">Today</button>
+                <button type="button" class="cal-footer-btn" id="cal-close-btn">Close</button>
+            </div>
+        `;
+
+        popover.innerHTML = html;
+
+        popover.querySelector("#cal-prev").addEventListener("click", (e) => {
+            e.stopPropagation();
+            viewMonth--;
+            if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+            renderMonth(viewYear, viewMonth);
+        });
+
+        popover.querySelector("#cal-next").addEventListener("click", (e) => {
+            e.stopPropagation();
+            viewMonth++;
+            if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+            renderMonth(viewYear, viewMonth);
+        });
+
+        popover.querySelectorAll(".cal-day-cell[data-cal-date]").forEach(cell => {
+            cell.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const picked = cell.dataset.calDate;
+                targetInput.value = picked;
+                clearInputError(targetInput);
+                targetInput.dispatchEvent(new Event("input", { bubbles: true }));
+                targetInput.dispatchEvent(new Event("change", { bubbles: true }));
+                updateChipState(targetInput);
+                closeCustomCalendar();
+            });
+        });
+
+        popover.querySelector("#cal-today-btn").addEventListener("click", (e) => {
+            e.stopPropagation();
+            targetInput.value = todayLocalIso();
+            clearInputError(targetInput);
+            targetInput.dispatchEvent(new Event("input", { bubbles: true }));
+            targetInput.dispatchEvent(new Event("change", { bubbles: true }));
+            updateChipState(targetInput);
+            closeCustomCalendar();
+        });
+
+        popover.querySelector("#cal-close-btn").addEventListener("click", (e) => {
+            e.stopPropagation();
+            closeCustomCalendar();
+        });
+    }
+
+    renderMonth(viewYear, viewMonth);
+
+    function onDocClick(e) {
+        if (!popover.contains(e.target) && e.target !== targetInput) {
+            closeCustomCalendar();
+            document.removeEventListener("click", onDocClick);
+        }
+    }
+    setTimeout(() => document.addEventListener("click", onDocClick), 50);
 }
 
 async function updateApiStatus() {
