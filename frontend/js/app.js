@@ -2897,11 +2897,24 @@ async function updateApiStatus() {
     const text = document.getElementById("api-status-text");
     if (!dot || !text) return;
     try {
-        const res = await fetch(`${API_BASE}/api/health`);
-        if (res.ok) {
+        const [healthRes, dbRes] = await Promise.all([
+            fetch(`${API_BASE}/api/health`).then(r => r.ok ? r.json() : null).catch(() => null),
+            fetch(`${API_BASE}/api/db-health`).then(r => r.ok ? r.json() : null).catch(() => null),
+        ]);
+
+        if (healthRes) {
             dot.className = "status-dot online";
             if (mobileDot) mobileDot.className = "status-dot online";
-            text.textContent = "API Online";
+
+            if (dbRes && dbRes.status === "ok") {
+                if (dbRes.is_xampp) {
+                    text.innerHTML = `Online &bull; <span style="color:#60a5fa;font-weight:600;" title="${escapeHtml(dbRes.message)}">XAMPP MySQL</span>`;
+                } else {
+                    text.innerHTML = `Online &bull; <span style="color:#34d399;font-weight:600;" title="${escapeHtml(dbRes.message)}">SQLite Standalone</span>`;
+                }
+            } else {
+                text.textContent = "API Online";
+            }
         } else {
             dot.className = "status-dot offline";
             if (mobileDot) mobileDot.className = "status-dot offline";

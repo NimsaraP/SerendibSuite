@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
-from backend.app.database.db import get_db, engine, Base
+from backend.app.database.db import get_db, engine, Base, DB_DRIVER, IS_XAMPP
 from backend.app.api.clients import router as clients_router
 from backend.app.api.bookings import router as bookings_router
 from backend.app.api.events import router as events_router
@@ -72,20 +72,20 @@ def health_check():
 def db_health_check(db: Session = Depends(get_db)):
     """
     Database connectivity check endpoint.
-    Attempts a minimal query against MySQL to confirm the connection works.
+    Attempts a minimal query against the active database and reports
+    whether it is connected to XAMPP MySQL or standalone SQLite.
     """
     try:
-        # text() wraps a raw SQL string safely.
-        # "SELECT 1" is the simplest possible query — it returns the number 1.
-        # If MySQL is running and reachable, this succeeds instantly.
         db.execute(text("SELECT 1"))
         return {
             "status": "ok",
             "database": "connected",
+            "engine": DB_DRIVER,
+            "is_xampp": IS_XAMPP,
+            "mode": "XAMPP MySQL Connected" if IS_XAMPP else "Standalone Mode (SQLite Active)",
+            "message": "Connected to local XAMPP MySQL database." if IS_XAMPP else "Operating in standalone mode with SQLite database. Site works smoothly without XAMPP.",
         }
     except Exception as error:
-        # Return a clear failure message WITHOUT exposing internal error details
-        # to the outside world — only log the detail on the server side.
         print(f"[db-health] Connection failed: {error}")
         return {
             "status": "error",
