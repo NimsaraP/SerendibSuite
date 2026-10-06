@@ -1,724 +1,306 @@
-# SerendibSuite
+# 📸 SerendibSuite
 
-SerendibSuite is a photographer-focused B2B workflow platform designed to help photographers manage clients, bookings, events, photo uploads, and AI-assisted photo selection from one system.
+<div align="center">
 
-The current version focuses on the core photographer workflow and establishes the foundation for future multi-tenant SaaS functionality.
+![SerendibSuite Banner](https://img.shields.io/badge/SerendibSuite-Photography%20Workflow%20Platform-4f46e5?style=for-the-badge&logo=camera)
+
+**AI-Assisted Workflow & Intelligent Culling Platform for Solo & Small-Team Event Photographers**
+
+[![Python Version](https://img.shields.io/badge/Python-3.10%2B-blue?style=flat-square&logo=python&logoColor=white)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![OpenCV](https://img.shields.io/badge/OpenCV-5.0-5C3EE8?style=flat-square&logo=opencv&logoColor=white)](https://opencv.org)
+[![Database](https://img.shields.io/badge/Database-SQLite%20%7C%20MySQL-orange?style=flat-square&logo=mysql&logoColor=white)](https://www.mysql.com)
+[![Status](https://img.shields.io/badge/Status-Gate%202%20%2B%20AI%20Milestones%20Complete-success?style=flat-square)]()
+[![Platform](https://img.shields.io/badge/Platform-Web%20%7C%20Mobile%20Responsive-brightgreen?style=flat-square)]()
+
+[Features](#-core-features) • [Architecture](#-system-architecture) • [AI Pipeline](#-ai-assisted-photo-analysis-pipeline) • [Quick Start](#-getting-started) • [API Reference](#-api-endpoints) • [Roadmap](#-roadmap)
 
 ---
 
-## Current Status
+</div>
 
-**All 3-Week Milestones Complete (Gate 2 + Burst Grouping + Personalization + XMP Export)**
+## 📖 Executive Summary & Problem Domain
 
-The current implementation supports an end-to-end connected photographer workflow:
+> **One-Line Problem:** Solo and small-team event photographers in Sri Lanka lose hours per event to disconnected booking tools and manual photo culling, with no unified, AI-assisted workflow built for their scale.
+
+### The Pain Point
+Event photographers covering weddings, corporate galas, and conferences typically run their client bookings through WhatsApp threads, manual spreadsheets, and external hard drives. After a shoot, they spend **3 to 6 hours** manually sorting through 100–300+ raw frames before creative editing can even begin. 
+
+**SerendibSuite** solves this by unifying:
+1. **Client & Booking Management** with strict field validations.
+2. **Event Workspaces** with smart chronological scheduling.
+3. **AI-Assisted Culling Pipeline** detecting blur, closed eyes, and burst duplicates.
+4. **Adaptive Personalization** that learns from photographer overrides.
+5. **Native Adobe XMP Export** for seamless integration with Adobe Lightroom & Photo Mechanic.
+
+---
+
+## 🚀 Complete 3-Week Workflow
 
 ```text
-Create Client
-    ↓
-Create Booking
-    ↓
-Create Event (Workspace)
-    ↓
-Upload Photos (Local-first storage)
-    ↓
-Run AI Analysis (Laplacian Blur + MediaPipe/Haar Eye Detect + pHash)
-    ↓
-Cluster Burst & Duplicate Sequences (Auto-picks best frame)
-    ↓
-Review AI Recommendations & Log Overrides
-    ↓
-Personalization Layer Adapts to Photographer Preferences
-    ↓
-Final Curated Selection
-    ↓
-Export Adobe XMP Sidecars to Lightroom / Photo Mechanic (.zip)
+  [ Create Client ]
+          ↓
+  [ Create Booking ]
+          ↓
+  [ Event Workspace ] (Chronological scheduling & Closest Upcoming Events)
+          ↓
+  [ Local Photo Ingestion ] (Fast local-first storage, no upload bottlenecks)
+          ↓
+  [ Multi-Stage AI Analysis ]
+    ├── Laplacian Variance (Sharpness / Blur detection)
+    ├── OpenCV YuNet + Haar Cascade (Face & Closed-Eye detection)
+    └── Perceptual Hashing (Visual similarity & burst clustering)
+          ↓
+  [ Burst & Duplicate Grouping ] (Auto-recommends best sharp frame)
+          ↓
+  [ Photographer Review & Overrides ] (AI recommends Keep/Review; Photographer decides Keep/Reject)
+          ↓
+  [ Personalization Layer ] (Calculates override rates & refines future criteria)
+          ↓
+  [ Final Curated Selection ]
+          ↓
+  [ Adobe XMP Sidecar Export ] (One-click zip export for Lightroom Classic)
 ```
 
-The current implementation is intended as a working foundation for the future SaaS product.
-
-Authentication, production multi-tenancy, client portals, billing, cloud storage, background workers, and production deployment are planned for later development stages.
-
-Features
-Client Management
-
-Photographers can:
-
-Create clients
-View clients
-Link clients to bookings
-Start a new job from the dashboard
-
-Each booking is associated with a client.
-
-Booking Management
-
-Photographers can:
-
-Create bookings
-Associate bookings with clients
-View existing bookings
-Use bookings as the parent record for events
-
-The current workflow allows a photographer to create a client first and then create a booking for that client.
-
-Event Management
-
-Photographers can:
-
-Create events
-Associate events with bookings
-View event details
-See booking and client information from the event
-Upload photos to an event
-
-The event acts as the main workspace for the photography job.
-
-Photo Management
-
-The current system supports:
-
-Multiple photo uploads
-JPEG images
-PNG images
-Local photo storage
-Photo thumbnails/previews
-Individual photo retrieval
-Event-level photo listing
-Photo analysis status tracking
-
-Photos are currently stored using the application's local storage system.
-
-AI-Assisted Photo Analysis
-
-SerendibSuite includes an AI-assisted photo analysis pipeline designed to help photographers review large sets of photos.
-
-The AI does not automatically make the final decision for the photographer.
-
-The current analysis pipeline includes:
-
-Blur Detection
-
-OpenCV-based Laplacian variance is used to estimate image sharpness/blur.
-
-Face Detection
-
-Face detection is performed using MediaPipe, with Haar cascade fallback support.
-
-Eye Detection
-
-The system attempts to determine whether eyes are detected in relevant faces.
-
-Perceptual Hashing
-
-Perceptual hashing is used to generate similarity information for photos.
-
-The resulting hash information can be used to identify visually similar images.
-
-AI Recommendation
-
-The current system provides an AI recommendation:
-
-keep
-review
-
-The recommendation is intended as an assistance mechanism for the photographer.
-
-Photographer Decisions
-
-The photographer remains the final decision maker.
-
-The system keeps the AI recommendation separate from the photographer's decision.
-
-A photo can therefore have:
-
-AI Recommendation: review
-
-Photographer Decision: keep
-
-This means the photographer can override the AI recommendation without changing the original AI result.
-
-Current photographer decisions are:
-
-keep
-reject
-
-This separation is intentional and will allow the AI system to be improved independently in future versions.
-
-Batch AI Analysis
-
-Photographers can analyse multiple photos from an event using the batch analysis workflow.
-
-The current interface supports:
-
-Analyse All
-Analyse Remaining
-Sequential photo analysis
-Progress feedback
-Individual AI recommendations
-Photographer review after analysis
-
-This allows the photographer to process a complete event rather than manually analysing every photo one at a time.
-
-Final Selection
-
-The Event Detail page contains a Final Selection section.
-
-The Final Selection contains photos that the photographer has explicitly marked as:
-
-keep
-
-The final selection is therefore based on the photographer's decisions rather than automatically deleting photos based on AI recommendations.
-
-Technology Stack
-Backend
-Python
-FastAPI
-SQLAlchemy
-MySQL
-PyMySQL
-Pydantic
-Frontend
-HTML
-CSS
-Vanilla JavaScript
-AI / Computer Vision
-OpenCV
-MediaPipe
-ImageHash
-Pillow
-Storage
-Local filesystem storage
-Architecture
-
-The current system follows a simple frontend/API/database architecture.
-
-                 ┌──────────────────────┐
-                 │      Frontend        │
-                 │ HTML / CSS / JS      │
-                 └──────────┬───────────┘
-                            │
-                            │ HTTP / JSON
-                            ▼
-                 ┌──────────────────────┐
-                 │      FastAPI         │
-                 │       Backend        │
-                 └──────────┬───────────┘
-                            │
-             ┌──────────────┼──────────────┐
-             │              │              │
-             ▼              ▼              ▼
-        Clients        Bookings         Events
-                                           │
-                                           ▼
-                                        Photos
-                                           │
-                                           ▼
-                                    AI Analysis
-                                           │
-                                           ▼
-                                      MySQL DB
-
-Photo files are currently stored locally while metadata and analysis information are stored in the database.
-
-Data Model
-
-The current application follows this relationship:
-
-User
- │
- └── Client
-      │
-      └── Booking
-           │
-           └── Event
-                │
-                └── Photo
-                     │
-                     └── PhotoAnalysis
-
-The intended future architecture will use the photographer/user as the tenant boundary.
-
-Photo Analysis Workflow
-
-The current photo workflow is:
-
-              Photo Upload
-                   │
-                   ▼
-             Photo Analysis
-                   │
-        ┌──────────┼──────────┐
-        │          │          │
-        ▼          ▼          ▼
-      Blur       Faces       Eyes
-    Detection   Detection   Detection
-        │          │          │
-        └──────────┼──────────┘
-                   │
-                   ▼
-             Perceptual Hash
-                   │
-                   ▼
-            AI Recommendation
-                   │
-              ┌────┴────┐
-              │         │
-              ▼         ▼
-            Keep      Review
-              │         │
-              └────┬────┘
-                   ▼
-          Photographer Review
-                   │
-             ┌─────┴─────┐
-             │           │
-             ▼           ▼
-           Keep        Reject
-             │
-             ▼
-       Final Selection
-
-The AI recommendation and photographer decision are stored separately.
-
-API Endpoints
-Clients
-POST /api/clients
-GET  /api/clients
-Bookings
-POST /api/bookings
-GET  /api/bookings
-Events
-POST /api/events
-GET  /api/events
-Photos
-POST  /api/photos/
-GET   /api/photos/
-GET   /api/photos/with-analysis?event_id={event_id}
-GET   /api/photos/burst-groups?event_id={event_id}
-GET   /api/photos/personalization-insights
-GET   /api/photos/export-xmp?event_id={event_id}
-GET   /api/photos/{photo_id}
-GET   /api/photos/{photo_id}/file
-POST  /api/photos/{photo_id}/analyse
-PATCH /api/photos/{photo_id}/decision
-Project Structure
-
-The project is currently organized around separate backend and frontend applications.
-
+---
+
+## ✨ Core Features
+
+| Feature | Description | Status |
+| :--- | :--- | :---: |
+| **Client Management** | Comprehensive client registry with email, phone, and name strict validation rules. | ✅ Active |
+| **Booking Tracking** | Track packages, event dates, pricing, advance deposits, and status. | ✅ Active |
+| **Event Workspace** | Dedicated workspace per shoot with event time, venue location, and photo stats. | ✅ Active |
+| **Closest Upcoming Events** | Dashboard prioritizes imminent shoots with chronological badges and times. | ✅ Active |
+| **Smart AI Culling** | Independent blur scoring, face landmark detection, and eye openness verification. | ✅ Active |
+| **Burst Detection** | Clusters rapid-fire burst sequences and automatically flags duplicate frames. | ✅ Active |
+| **Personalization Engine** | Analyzes photographer overrides to learn personal curation preferences. | ✅ Active |
+| **Lightroom XMP Export** | Generates industry-standard `.xmp` metadata sidecars in a downloadable `.zip`. | ✅ Active |
+| **Universal Responsive UI** | Auto-scaling fluid layout supporting 4K desktop, laptops, tablets, and smartphones. | ✅ Active |
+| **Zero-Config DB Fallback** | Seamlessly runs with local SQLite (`serendibsuite.db`) or MySQL/MariaDB. | ✅ Active |
+
+---
+
+## 🧠 AI-Assisted Photo Analysis Pipeline
+
+The AI engine in SerendibSuite acts as a **tireless second shooter**, accelerating triage without taking creative agency away from the photographer.
+
+```text
+                     Photo Input
+                          │
+         ┌────────────────┼────────────────┐
+         ▼                ▼                ▼
+   Laplacian Blur     OpenCV YuNet      Perceptual
+     Detection       Eye Landmark         pHash
+   (Score < 100)     (Open / Closed)    (Duplicates)
+         │                │                │
+         └────────────────┼────────────────┘
+                          ▼
+                AI Recommendation
+               ┌──────────┴──────────┐
+             [KEEP]               [REVIEW]
+               │                     │
+               └──────────┬──────────┘
+                          ▼
+                Photographer Decision
+               ┌──────────┴──────────┐
+             [KEEP]               [REJECT]
+                          │
+                          ▼
+                 Final Selection & XMP
+```
+
+### 1. Sharpness & Blur Detection
+Utilizes OpenCV Laplacian kernel variance:
+$$\text{Score} = \text{Var}(\nabla^2 I)$$
+Images scoring below the configurable threshold (default `100.0`) are automatically flagged as blurry.
+
+### 2. Deep Face & Eye Landmark Detection
+Employs modern **OpenCV YuNet ONNX** with automated fallback to Haar cascades. Accurately determines if subjects in portraits have closed or squinting eyes during critical moments.
+
+### 3. Perceptual Duplicate Grouping
+Generates 64-bit perceptual hashes (`pHash`). Successive frames in burst shots with a Hamming distance $\le 10$ are clustered, automatically picking the single sharpest frame as the hero recommendation.
+
+### 4. Human-in-the-Loop Philosophy
+* **AI Recommendation:** `KEEP` or `REVIEW`
+* **Photographer Decision:** `KEEP` or `REJECT`
+* Human decisions **never overwrite** AI telemetry, enabling the personalization engine to calculate precise override weights.
+
+---
+
+## 🏗️ System Architecture
+
+```text
+                  ┌─────────────────────────────────────────┐
+                  │       Responsive Modern Frontend        │
+                  │   HTML5 • Vanilla ES6+ • Fluid CSS3     │
+                  └────────────────────┬────────────────────┘
+                                       │ HTTP / JSON (REST)
+                                       ▼
+                  ┌─────────────────────────────────────────┐
+                  │          FastAPI Backend Core           │
+                  │   Uvicorn • Pydantic v2 • SQLAlchemy    │
+                  └──────────────┬──────────────────┬───────┘
+                                 │                  │
+                ┌────────────────┴──────┐           │
+                ▼                       ▼           ▼
+        ┌──────────────┐        ┌──────────────┐ ┌──────────────┐
+        │  Computer    │        │ Persistence  │ │ Storage      │
+        │  Vision / AI │        │ Layer        │ │ Layer        │
+        │  • OpenCV    │        │ • SQLite     │ │ • Local-first│
+        │  • YuNet     │        │ • MySQL      │ │   originals  │
+        │  • ImageHash │        │ • Schema v2  │ │ • Sidecars   │
+        └──────────────┘        └──────────────┘ └──────────────┘
+```
+
+### 📂 Project Structure
+
+```text
 SerendibSuite/
-│
-├── backend/
+├── ai/                              # Computer Vision & Intelligence
+│   ├── blur_detection.py            # Laplacian variance sharpness
+│   ├── eye_detection.py             # YuNet & Haar cascade eye detector
+│   ├── similarity.py                # Perceptual hash & burst clustering
+│   ├── personalization.py           # Adaptive override learning engine
+│   └── models/                      # Lightweight onnx and xml models
+├── backend/                         # FastAPI Application Backend
 │   ├── app/
-│   │   ├── api/
-│   │   ├── models/
-│   │   ├── schemas/
-│   │   └── ...
-│   │
-│   ├── seed_test_data.py
-│   └── requirements.txt
-│
-├── frontend/
-│   ├── css/
-│   ├── js/
-│   └── index.html
-│
-├── storage/
-│
-└── README.md
+│   │   ├── api/                     # REST Endpoints (Clients, Bookings, Events, Photos, XMP)
+│   │   ├── database/                # Database engine & session factories
+│   │   ├── models/                  # SQLAlchemy ORM Models
+│   │   └── schemas/                 # Strict Pydantic validation schemas
+│   └── requirements.txt             # Python dependencies
+├── frontend/                        # Client-Side Application
+│   ├── css/style.css                # Fluid responsive design (Dark theme)
+│   ├── js/app.js                    # SPA application state & view controller
+│   ├── js/api.js                    # Fetch API client wrapper
+│   └── index.html                   # Semantic HTML5 shell
+├── storage/                         # Local-first media store & SQLite DB
+├── populate_10_photos.py            # Showcase photo population script
+└── README.md                        # Documentation
+```
 
-The exact internal structure may evolve as development continues.
+---
 
+## ⚡ Getting Started
 
-Running Locally
-Requirements
+### Prerequisites
+* **Python 3.10+**
+* Modern web browser (Chrome, Edge, Firefox, Safari)
+* *(Optional)* MySQL / MariaDB via XAMPP (defaults to zero-config SQLite if not installed)
 
-Before running SerendibSuite locally, install:
+---
 
-Python
-MySQL
-Git
+### 1. Installation
 
-A modern web browser is also required.
-
-1. Clone the Repository
-git clone <repository-url>
+```powershell
+# Clone the repository
+git clone https://github.com/NimsaraP/SerendibSuite.git
 cd SerendibSuite
-2. Create a Python Virtual Environment
-Windows
+
+# Create and activate virtual environment
 python -m venv .venv
+
+# On Windows:
 .venv\Scripts\activate
-Linux / macOS
-python3 -m venv .venv
+# On macOS / Linux:
 source .venv/bin/activate
-3. Install Backend Dependencies
+
+# Install backend dependencies
 pip install -r backend/requirements.txt
-Database Configuration
+```
 
-SerendibSuite currently uses MySQL through SQLAlchemy and PyMySQL.
+---
 
-Create the required MySQL database and configure the database connection used by the backend.
+### 2. Running the Servers
 
-Database credentials should remain local and must not be committed to Git.
+Open two terminal windows:
 
-Do not commit:
+#### Terminal 1 — Backend API Server
+```powershell
+python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+> 📍 API will be active at: `http://127.0.0.1:8000`  
+> 📚 Interactive Swagger Docs: `http://127.0.0.1:8000/docs`
 
-Passwords
-API keys
-Secret keys
-Production credentials
-Private configuration files
-
-Use environment variables or another secure configuration method for sensitive values.
-
-Start the Backend
-
-From the project root:
-
-uvicorn backend.app.main:app --reload
-
-The API will normally be available at:
-
-http://127.0.0.1:8000
-
-FastAPI's interactive API documentation is available at:
-
-http://127.0.0.1:8000/docs
-Start the Frontend
-
-The frontend can be served using Python's built-in HTTP server.
-
-From the project root:
-
+#### Terminal 2 — Frontend Web Server
+```powershell
 python -m http.server 5500 --directory frontend
+```
+> 🌐 Open your browser and navigate to: **`http://127.0.0.1:5500`**
 
-Then open:
+---
 
-http://127.0.0.1:5500
-Development Seed Data
+### 3. Showcase & Test Data Setup (Optional)
 
-A development seed script is included for testing the photographer workflow.
+To immediately populate the system with **13 upcoming events** and **10 curated showcase photos** (8 real portraits + 2 detail shots):
 
-Run:
+```powershell
+# Seed demo clients, bookings, and realistic scheduled events
+python update_events_schedule.py
 
-python backend/seed_test_data.py
+# Populate showcase photo set
+python populate_10_photos.py
+```
 
-The seed data is intended for local development and testing only.
+---
 
-Example End-to-End Workflow
+## 📡 API Endpoints
 
-A complete Gate 2 workflow can be tested using the following steps.
+<details>
+<summary><b>Click to expand full API specification</b></summary>
 
-Step 1 — Create a Client
+### 👤 Clients
+* `POST /api/clients` — Create a new client (with name, email, phone validations)
+* `GET  /api/clients` — Retrieve all registered clients
 
-Create a new client from the Clients section or dashboard.
+### 📅 Bookings
+* `POST /api/bookings` — Create a booking linked to a client
+* `GET  /api/bookings` — Retrieve all bookings with client details
 
-Step 2 — Create a Booking
+### 🎪 Events
+* `POST /api/events` — Create an event workspace with date, time, and location
+* `GET  /api/events` — List all events (supports chronological ordering)
 
-Create a booking and associate it with the client.
+### 🖼️ Photos & AI Culling
+* `POST  /api/photos/` — Upload one or more photos to an event
+* `GET   /api/photos/with-analysis?event_id={id}` — Fetch event photos with AI scores
+* `POST  /api/photos/{photo_id}/analyse` — Run AI analysis on a single photo
+* `PATCH /api/photos/{photo_id}/decision` — Update photographer decision (`keep` / `reject`)
+* `GET   /api/photos/burst-groups?event_id={id}` — Retrieve clustered duplicate sequences
+* `GET   /api/photos/personalization-insights` — Get override analytics and learned weights
+* `GET   /api/photos/export-xmp?event_id={id}` — Download Adobe XMP sidecars zip archive
 
-Step 3 — Create an Event
+</details>
 
-Create an event and associate it with the booking.
+---
 
-Step 4 — Open Event Detail
+## 🗺️ Roadmap & Milestones
 
-The Event Detail page displays:
+- [x] **Milestone 1 — Core Foundation**
+  - FastAPI backend, database schemas, local storage, API routing.
+- [x] **Milestone 2 — Photographer Workflow**
+  - End-to-end client $\to$ booking $\to$ event $\to$ photo upload pipeline.
+  - Multi-stage CV analysis (Laplacian Blur + YuNet/Haar Face & Eye detection).
+  - Batch photo analysis and separate AI recommendation vs Human decision.
+- [x] **Milestone 3 — Advanced Workflow Extensions**
+  - Perceptual hash burst/duplicate grouping.
+  - Personalization engine tracking decision overrides.
+  - Adobe XMP sidecar zip export for Lightroom Classic.
+  - Strict input validations (Names, Emails, Sri Lankan & International Phone Numbers).
+  - 100% fluid mobile-first responsive scaling across all screen sizes.
+- [ ] **Milestone 4 — Multi-Tenancy & SaaS Infrastructure (Planned)**
+  - JWT Authentication & photographer registration.
+  - Tenant database isolation.
+  - Client-facing preview gallery and selection portal.
+  - Background asynchronous task workers (Celery / Redis).
 
-Event information
-Booking information
-Client information
-Photo section
-AI analysis section
-Final Selection section
-Step 5 — Upload Photos
+---
 
-Upload multiple JPEG or PNG photos to the event.
+## 📄 License & Intellectual Property
 
-Step 6 — Analyse Photos
+This project is developed for the **IntelliCon** initiative. All rights reserved. Private development.
 
-Use:
-
-Analyse All
-
-or:
-
-Analyse Remaining
-
-The system analyses the photos sequentially and displays progress.
-
-Step 7 — Review AI Recommendations
-
-Each analysed photo receives an AI recommendation.
-
-The current recommendations are:
-
-KEEP
-REVIEW
-Step 8 — Make Photographer Decisions
-
-The photographer can independently choose:
-
-KEEP
-REJECT
-
-The photographer decision does not overwrite the AI recommendation.
-
-Step 9 — Review Final Selection
-
-Photos marked by the photographer as:
-
-KEEP
-
-appear in the Final Selection section.
-
-Current Limitations
-
-The current Gate 2 implementation intentionally does not yet include the complete production SaaS infrastructure.
-
-The following features are not yet implemented:
-
-User authentication
-Photographer registration
-Login/logout
-Password management
-Production-grade multi-tenancy enforcement
-Role-based permissions
-Client-facing portal
-Client accounts
-Client photo selection
-Gallery delivery
-Cloud object storage
-Background processing workers
-Email notifications
-Billing
-Subscription management
-Production deployment
-Automated test suite
-Advanced duplicate detection
-Production-trained AI selection model
-
-These features are planned for future development.
-
-AI Design Philosophy
-
-The AI system is designed as an assistant rather than an autonomous decision maker.
-
-The current architecture intentionally separates:
-
-AI Recommendation
-
-from:
-
-Photographer Decision
-
-This allows the photographer to override AI recommendations and keeps the human decision as the final authority.
-
-Future AI improvements can therefore be introduced without changing the basic photographer workflow.
-
-Multi-Tenancy Direction
-
-The long-term product is intended to support multiple photographers.
-
-The intended model is:
-
-Photographer A
- │
- ├── Clients
- ├── Bookings
- ├── Events
- └── Photos
-
-
-Photographer B
- │
- ├── Clients
- ├── Bookings
- ├── Events
- └── Photos
-
-Each photographer should only be able to access their own business data.
-
-Authentication and strict tenant isolation will be implemented in a future development gate.
-
-Product Direction
-
-The long-term goal of SerendibSuite is to provide photographers with a complete business workflow.
-
-The planned high-level workflow is:
-
-                    Photographer
-                         │
-          ┌──────────────┼──────────────┐
-          │              │              │
-          ▼              ▼              ▼
-       Clients       Bookings        Events
-                                         │
-                                         ▼
-                                       Photos
-                                         │
-                                         ▼
-                                  AI Assistance
-                                         │
-                                         ▼
-                                  Final Selection
-                                         │
-                                         ▼
-                                  Client Gallery
-                                         │
-                                         ▼
-                                  Client Delivery
-
-The current Gate 2 implementation establishes the core photographer-side workflow required for this future system.
-
-Roadmap
-Gate 1 — Foundation
-FastAPI backend
-Database foundation
-SQLAlchemy models
-Initial frontend
-Initial API structure
-
-Status:
-
-Complete
-Gate 2 — Photographer Workflow
-Client creation
-Booking creation
-Event creation
-Event detail
-Multiple photo upload
-Local photo storage
-Photo serving
-AI photo analysis
-Batch AI analysis
-Blur detection
-Face detection
-Eye detection
-Perceptual hashing
-AI recommendations
-Photographer Keep/Reject decisions
-Final Selection
-
-Status:
-
-Complete
-Gate 3 — Authentication and Multi-Tenancy
-
-Planned:
-
-Photographer registration
-Login
-Logout
-Password security
-Sessions/authentication
-User authorization
-Tenant isolation
-Photographer-specific data access
-Protection of API endpoints
-
-Status:
-
-Planned
-Future Development
-
-Planned future capabilities include:
-
-Client portal
-Client accounts
-Online galleries
-Client photo selection
-Photo delivery
-Cloud storage
-Background AI processing
-Email notifications
-Billing and subscriptions
-Advanced AI photo ranking
-Improved duplicate detection
-Production deployment
-Monitoring and logging
-Automated testing
-Development Principles
-1. Photographer Remains in Control
-
-AI recommendations should assist the photographer rather than silently making irreversible decisions.
-
-2. AI and Human Decisions Remain Separate
-
-AI recommendations and photographer decisions should remain independently traceable.
-
-3. Build Vertically
-
-Each development gate should produce a working end-to-end workflow rather than isolated features.
-
-4. Keep the Architecture Incremental
-
-Production infrastructure should be introduced when the underlying workflow is stable.
-
-5. Protect Tenant Boundaries
-
-When authentication and multi-tenancy are introduced, every photographer's data must be isolated from other photographers.
-
-6. Avoid Premature Automation
-
-The system should first establish reliable workflows before introducing complex background processing, autonomous AI actions, or production infrastructure.
-
-Security Notes
-
-This project is currently under development.
-
-The current Gate 2 implementation should be treated as a development environment rather than a production deployment.
-
-Before production use, the application will require:
-
-Authentication
-Authorization
-Tenant isolation
-Secure password handling
-Secure secret management
-Input validation
-File upload validation
-File size restrictions
-Secure file storage
-Production database configuration
-HTTPS
-Logging and monitoring
-Rate limiting
-Production deployment configuration
-Git Development
-
-The project uses Git for version control.
-
-A stable development checkpoint should be committed after completing each major development gate.
-
-Example:
-
-git status
-git add .
-git commit -m "feat: complete Gate 2 photographer workflow"
-git push origin main
-
-Future commits should use clear messages describing the purpose of the change.
-
-License
-
-This project is currently under private development.
-
-License terms will be added when the project is prepared for public distribution.
-
-Current Milestone
-SerendibSuite
-│
-├── Gate 1 — Foundation
-│   └── COMPLETE
-│
-├── Gate 2 — Photographer Workflow
-│   └── COMPLETE
-│
-└── Gate 3 — Authentication & Multi-Tenancy
-    └── NEXT
-
-The current priority is to preserve the completed Gate 2 workflow as a stable checkpoint before beginning authentication and multi-tenant architecture.
-
-
-
-...
+<div align="center">
+<sub>Crafted with passion for Sri Lankan Event Photographers 🇱🇰</sub>
+</div>
