@@ -157,7 +157,7 @@ def populate():
             event_id=event.id,
             original_filename=filename,
             stored_filename=stored_filename,
-            file_path=str(final_path),
+            file_path=stored_filename,
             file_size=len(data),
             mime_type="image/jpeg",
         )

@@ -2040,25 +2040,21 @@ async function loadAllPhotos() {
     const container = document.getElementById("all-photos-list");
     showLoading("all-photos-list");
     try {
-        const events = await getEvents();
-        if (events.length === 0) {
-            container.innerHTML = `<p class="empty-msg">No events found yet. Create an event and upload photos first.</p>`;
-            return;
-        }
-
-        let allPhotos = [];
-        for (const ev of events) {
-            try {
-                const photos = await getPhotosWithAnalysis(ev.id);
-                photos.forEach(p => p.eventName = ev.name);
-                allPhotos.push(...photos);
-            } catch (_) {}
-        }
+        const [events, allPhotos] = await Promise.all([
+            getEvents().catch(() => []),
+            getPhotosWithAnalysis().catch(() => []),
+        ]);
 
         if (allPhotos.length === 0) {
-            container.innerHTML = `<p class="empty-msg">No photos uploaded yet across any events.</p>`;
+            container.innerHTML = `<p class="empty-msg">No photos uploaded yet across any events. Select an event and upload photos first.</p>`;
             return;
         }
+
+        const eventMap = {};
+        events.forEach(ev => { eventMap[ev.id] = ev.name; });
+        allPhotos.forEach(p => {
+            p.eventName = eventMap[p.event_id] || `Event #${p.event_id}`;
+        });
 
         container.innerHTML = `
             <table class="data-table">
@@ -2077,7 +2073,7 @@ async function loadAllPhotos() {
                     ${allPhotos.map(p => `
                         <tr>
                             <td>
-                                <img src="${photoFileUrl(p.id)}" style="width:48px;height:48px;object-fit:cover;border-radius:4px;" onerror="this.style.display='none'" />
+                                <img src="${photoFileUrl(p.id)}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;background:#1e293b;" alt="${escapeHtml(p.original_filename)}" onerror="this.onerror=null;this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'48\' height=\'48\' viewBox=\'0 0 24 24\' fill=\'%2364748b\'><path d=\'M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z\'/></svg>';" />
                             </td>
                             <td><strong>${p.original_filename}</strong></td>
                             <td>${p.eventName}</td>

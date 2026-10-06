@@ -423,7 +423,16 @@ def serve_photo_file(photo_id: int, db: Session = Depends(get_db)):
             detail=f"Photo with id={photo_id} does not exist.",
         )
 
-    abs_path = (STORAGE_ROOT / photo.file_path).resolve()
+    # Normalize path and strip redundant storage/ prefix if present
+    rel_path_str = (photo.file_path or photo.stored_filename).replace("\\", "/")
+    if rel_path_str.startswith("storage/"):
+        rel_path_str = rel_path_str[len("storage/"):]
+
+    candidate = (STORAGE_ROOT / rel_path_str).resolve()
+    if not candidate.exists():
+        candidate = (STORAGE_ROOT / photo.stored_filename).resolve()
+
+    abs_path = candidate
 
     # Path-traversal guard: the resolved path must still be inside STORAGE_ROOT.
     try:

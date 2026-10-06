@@ -164,7 +164,8 @@ export async function analysePhoto(photoId) {
  * Returns PhotoWithAnalysis[] where each item has an optional .analysis object.
  */
 export async function getPhotosWithAnalysis(eventId) {
-    return apiFetch(`/api/photos/with-analysis?event_id=${eventId}`);
+    const query = (eventId !== undefined && eventId !== null) ? `?event_id=${eventId}` : "";
+    return apiFetch(`/api/photos/with-analysis${query}`);
 }
 
 /**
