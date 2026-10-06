@@ -34,6 +34,9 @@ class Event(Base):
     # The actual date the photo shoot takes place.
     event_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
 
+    # Time of the event / shoot (e.g. "10:00 AM", "14:30").
+    event_time: Mapped[Optional[str]] = mapped_column(String(30), nullable=True, default=None)
+
     # Where the shoot happens.
     location: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 

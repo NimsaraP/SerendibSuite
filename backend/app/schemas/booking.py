@@ -34,8 +34,10 @@ class BookingCreate(BaseModel):
     @classmethod
     def title_must_not_be_blank(cls, value: str) -> str:
         stripped = value.strip()
-        if not stripped:
-            raise ValueError("title must not be blank")
+        if len(stripped) < 3:
+            raise ValueError("Booking title must be at least 3 characters long")
+        if len(stripped) > 200:
+            raise ValueError("Booking title cannot exceed 200 characters")
         return stripped
 
     @field_validator("status")
@@ -45,6 +47,13 @@ class BookingCreate(BaseModel):
             raise ValueError(
                 f"status must be one of: {', '.join(BOOKING_STATUSES)}"
             )
+        return value
+
+    @field_validator("notes")
+    @classmethod
+    def notes_length_check(cls, value: Optional[str]) -> Optional[str]:
+        if value and len(value) > 1000:
+            raise ValueError("Notes cannot exceed 1000 characters")
         return value
 
 

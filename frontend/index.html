@@ -14,15 +14,32 @@
 </head>
 <body>
 
+<!-- Mobile Header Bar (Visible on mobile/tablets) -->
+<header class="mobile-topbar">
+    <button type="button" class="btn-mobile-menu" id="btn-mobile-menu" aria-label="Open Navigation">
+        <span>☰</span>
+    </button>
+    <div class="mobile-brand">
+        Serendib<span>Suite</span>
+    </div>
+    <div class="mobile-topbar-status">
+        <div class="status-dot" id="mobile-api-dot"></div>
+    </div>
+</header>
+<div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
 <!-- =========================================================================
      SIDEBAR
      ========================================================================= -->
-<aside class="sidebar">
+<aside class="sidebar" id="sidebar">
 
     <!-- Branding -->
     <div class="sidebar-brand">
-        <div class="brand-name">Serendib<span>Suite</span></div>
-        <div class="brand-tagline">Photographer Workspace</div>
+        <div class="sidebar-brand-text">
+            <div class="brand-name">Serendib<span>Suite</span></div>
+            <div class="brand-tagline">Photographer Workspace</div>
+        </div>
+        <button type="button" class="btn-sidebar-close" id="btn-sidebar-close" aria-label="Close Navigation">✕</button>
     </div>
 
     <!-- Navigation -->
@@ -49,16 +66,16 @@
             <span>Events</span>
         </a>
 
-        <div class="nav-section-label">Coming Soon</div>
+        <div class="nav-section-label">AI &amp; Workflow</div>
 
-        <a class="nav-link disabled" href="#">
+        <a class="nav-link" data-section="section-photos" href="#">
             <span class="nav-icon">🖼</span>
-            <span>Photos</span>
+            <span>All Photos</span>
         </a>
 
-        <a class="nav-link disabled" href="#">
-            <span class="nav-icon">🤖</span>
-            <span>AI Analysis</span>
+        <a class="nav-link" data-section="section-ai-insights" href="#">
+            <span class="nav-icon">🧠</span>
+            <span>AI Personalization</span>
         </a>
     </nav>
 
@@ -139,7 +156,7 @@
         <div class="create-panel">
             <h2>Create Event</h2>
             <p class="create-panel-hint">Attach an event to an existing booking, then open it to upload photos.</p>
-            <form id="form-create-event" class="create-form">
+            <form id="form-create-event" class="create-form" novalidate>
                 <label>
                     Booking
                     <select id="event-booking" name="booking_id" required>
@@ -153,6 +170,10 @@
                 <label>
                     Event date
                     <input type="date" id="event-date" name="event_date" required />
+                </label>
+                <label>
+                    Event time
+                    <input type="time" id="event-time" name="event_time" value="10:00" />
                 </label>
                 <label>
                     Location
@@ -212,18 +233,18 @@
         <div class="create-panel">
             <h2>Create Client</h2>
             <p class="create-panel-hint">Add a client, then create a booking for them.</p>
-            <form id="form-create-client" class="create-form">
+            <form id="form-create-client" class="create-form" novalidate>
                 <label>
                     Name
-                    <input type="text" id="client-name" name="name" required placeholder="Silva Family" maxlength="100" />
+                    <input type="text" id="client-name" name="name" required placeholder="e.g. Kasun Perera" maxlength="100" autocomplete="off" />
                 </label>
                 <label>
                     Email
-                    <input type="email" id="client-email" name="email" required placeholder="client@example.com" />
+                    <input type="email" id="client-email" name="email" required placeholder="client@example.com" autocomplete="off" />
                 </label>
                 <label>
                     Phone
-                    <input type="text" id="client-phone" name="phone" placeholder="Optional" maxlength="30" />
+                    <input type="tel" id="client-phone" name="phone" placeholder="+94 77 123 4567 (optional)" maxlength="30" autocomplete="off" />
                 </label>
                 <label class="create-form-span">
                     Notes
@@ -256,7 +277,7 @@
         <div class="create-panel">
             <h2>Create Booking</h2>
             <p class="create-panel-hint">Choose a client, then create an event for this booking.</p>
-            <form id="form-create-booking" class="create-form">
+            <form id="form-create-booking" class="create-form" novalidate>
                 <label>
                     Client
                     <select id="booking-client" name="client_id" required>
@@ -294,6 +315,78 @@
         <div class="table-wrapper">
             <div id="bookings-list">
                 <div class="loading-msg">Loading…</div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- -------------------------------------------------------------------
+         ALL PHOTOS SECTION
+         ------------------------------------------------------------------- -->
+    <section class="section" id="section-photos">
+        <div class="page-header">
+            <h1>All Photos</h1>
+            <p>Global repository of uploaded photos across all your photography events.</p>
+        </div>
+
+        <div class="table-wrapper">
+            <div id="all-photos-list">
+                <div class="loading-msg">Loading photos…</div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- -------------------------------------------------------------------
+         AI PERSONALIZATION & INSIGHTS SECTION
+         ------------------------------------------------------------------- -->
+    <section class="section" id="section-ai-insights">
+        <div class="page-header">
+            <h1>AI Personalization &amp; Learning</h1>
+            <p>Adaptive culling engine that learns your unique artistic decisions and sharpness taste over time.</p>
+        </div>
+
+        <div class="stat-cards" id="personalization-stat-cards">
+            <div class="stat-card">
+                <div class="stat-icon">🎯</div>
+                <div class="stat-label">Learned Blur Threshold</div>
+                <div class="stat-value" id="stat-learned-threshold">100.0</div>
+                <div class="stat-hint" id="stat-threshold-delta">Baseline: 100.0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🔄</div>
+                <div class="stat-label">Logged Overrides</div>
+                <div class="stat-value" id="stat-total-overrides">0</div>
+                <div class="stat-hint">Human edits learned</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📈</div>
+                <div class="stat-label">Convergence Score</div>
+                <div class="stat-value" id="stat-convergence">0%</div>
+                <div class="stat-hint">Personalization depth</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🎨</div>
+                <div class="stat-label">Artistic Preference</div>
+                <div class="stat-value" id="stat-artistic-style" style="font-size: 1.1rem; line-height: 1.4;">Standard</div>
+                <div class="stat-hint" id="stat-eye-keeps">Closed-eye keeps: 0</div>
+            </div>
+        </div>
+
+        <div class="widget">
+            <div class="widget-title">💡 Personalized Recommendation Insight</div>
+            <p id="personalization-summary-text" style="font-size: 0.95rem; color: #a0aec0; margin-top: 8px;">
+                Analyzing your override history...
+            </p>
+        </div>
+
+        <div class="widget">
+            <div class="widget-title">📜 Override Learning Audit Log</div>
+            <p class="create-panel-hint">Whenever you override an AI recommendation, the decision is recorded here to adjust your AI model weights.</p>
+            <div class="table-wrapper">
+                <div id="overrides-history-list">
+                    <div class="loading-msg">Loading override history…</div>
+                </div>
             </div>
         </div>
     </section>

@@ -28,15 +28,46 @@ class ClientCreate(BaseModel):
     phone: Optional[str] = None   # Optional — may be omitted or sent as null
     notes: Optional[str] = None
 
-    # Custom validator: strip leading/trailing whitespace from name.
-    # Called automatically by Pydantic before storing the value.
+    # Custom validator: strip leading/trailing whitespace from name and check min length.
     @field_validator("name")
     @classmethod
     def name_must_not_be_blank(cls, value: str) -> str:
         stripped = value.strip()
-        if not stripped:
-            raise ValueError("name must not be blank")
+        if len(stripped) < 2:
+            raise ValueError("Client name must be at least 2 characters long")
+        if len(stripped) > 100:
+            raise ValueError("Client name cannot exceed 100 characters")
+        if any(c.isdigit() for c in stripped):
+            raise ValueError("Client name cannot contain numbers. Only letters are allowed.")
+        import re
+        if not re.match(r"^[A-Za-z\s\.\'\-]+$", stripped):
+            raise ValueError("Client name can only contain letters, spaces, hyphens, and apostrophes.")
         return stripped
+
+    @field_validator("phone")
+    @classmethod
+    def phone_format_check(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        stripped = value.strip()
+        if not stripped:
+            return None
+        if any(c.isalpha() for c in stripped):
+            raise ValueError("Phone number cannot contain letters. Numbers only (e.g. +94 77 123 4567).")
+        import re
+        if not re.match(r"^\+?[0-9\s\-\(\)]+$", stripped):
+            raise ValueError("Phone number contains invalid characters. Only digits, +, -, and spaces are allowed.")
+        digits = [c for c in stripped if c.isdigit()]
+        if len(digits) < 9 or len(digits) > 15:
+            raise ValueError("Phone number must contain between 9 and 15 digits (e.g. +94 77 123 4567)")
+        return stripped
+
+    @field_validator("notes")
+    @classmethod
+    def notes_length_check(cls, value: Optional[str]) -> Optional[str]:
+        if value and len(value) > 1000:
+            raise ValueError("Notes cannot exceed 1000 characters")
+        return value
 
 
 # =============================================================================

@@ -17,19 +17,26 @@ load_dotenv(dotenv_path=_env_path)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-if not DATABASE_URL:
-    raise RuntimeError(
-        "DATABASE_URL is not set. "
-        "Make sure backend/.env exists and contains DATABASE_URL."
-    )
+# Storage directory for local files and SQLite fallback
+_storage_dir = Path(__file__).resolve().parents[3] / "storage"
+_storage_dir.mkdir(parents=True, exist_ok=True)
 
-# ---------------------------------------------------------------------------
+if not DATABASE_URL:
+    # Zero-configuration default: use SQLite in storage directory so the app
+    # works immediately without requiring a running MySQL server.
+    sqlite_path = _storage_dir / "serendibsuite.db"
+    DATABASE_URL = f"sqlite:///{sqlite_path.as_posix()}"
+    print(f"[db] DATABASE_URL not set in .env. Using default SQLite: {DATABASE_URL}")
+
 # SQLAlchemy Engine
-# ---------------------------------------------------------------------------
-# The engine is the object that knows HOW to talk to the database.
-# pool_pre_ping=True tells SQLAlchemy to check the connection is still alive
-# before using it — useful when XAMPP restarts between coding sessions.
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+# SQLite does not support pool_pre_ping and needs check_same_thread=False
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"check_same_thread": False},
+    )
+else:
+    engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
 # ---------------------------------------------------------------------------
 # Session factory

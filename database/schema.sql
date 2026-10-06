@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS events (
     booking_id INT          NOT NULL,
     name       VARCHAR(200) NOT NULL,
     event_date DATE         NOT NULL,
+    event_time VARCHAR(30)  DEFAULT NULL,
     location   VARCHAR(255) DEFAULT NULL,
     status     VARCHAR(20)  NOT NULL DEFAULT 'scheduled',
     created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -137,4 +138,29 @@ CREATE TABLE IF NOT EXISTS photo_analysis (
     UNIQUE KEY uq_photo_analysis_photo_id (photo_id),
     CONSTRAINT fk_photo_analysis_photo
         FOREIGN KEY (photo_id) REFERENCES photos (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------------------------
+-- 7. culling_overrides
+--    Logs photographer overrides of AI recommendations for adaptive learning.
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS culling_overrides (
+    id                    INT         NOT NULL AUTO_INCREMENT,
+    photo_id              INT         NOT NULL,
+    event_id              INT         NOT NULL,
+    ai_recommendation     VARCHAR(20) NOT NULL,
+    photographer_decision VARCHAR(20) NOT NULL,
+    blur_score            FLOAT       DEFAULT NULL,
+    is_blurry             TINYINT(1)  DEFAULT NULL,
+    face_detected         TINYINT(1)  DEFAULT NULL,
+    eyes_status           VARCHAR(20) DEFAULT NULL,
+    created_at            DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+    KEY idx_culling_overrides_photo_id (photo_id),
+    KEY idx_culling_overrides_event_id (event_id),
+    CONSTRAINT fk_culling_overrides_photo
+        FOREIGN KEY (photo_id) REFERENCES photos (id) ON DELETE CASCADE,
+    CONSTRAINT fk_culling_overrides_event
+        FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

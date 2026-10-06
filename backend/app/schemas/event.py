@@ -20,6 +20,7 @@ class EventCreate(BaseModel):
     booking_id: int     # must match an existing bookings.id row
     name: str           # e.g. "Ceremony" or "Reception"
     event_date: date    # ISO-8601 date string: "2025-12-14"
+    event_time: Optional[str] = None  # e.g. "10:00 AM" or "14:30"
 
     location: Optional[str] = None
 
@@ -34,9 +35,18 @@ class EventCreate(BaseModel):
     @classmethod
     def name_must_not_be_blank(cls, value: str) -> str:
         stripped = value.strip()
-        if not stripped:
-            raise ValueError("name must not be blank")
+        if len(stripped) < 2:
+            raise ValueError("Event name must be at least 2 characters long")
+        if len(stripped) > 200:
+            raise ValueError("Event name cannot exceed 200 characters")
         return stripped
+
+    @field_validator("location")
+    @classmethod
+    def location_length_check(cls, value: Optional[str]) -> Optional[str]:
+        if value and len(value) > 255:
+            raise ValueError("Location cannot exceed 255 characters")
+        return value
 
     @field_validator("status")
     @classmethod
@@ -60,6 +70,7 @@ class EventRead(BaseModel):
     booking_id: int
     name: str
     event_date: date
+    event_time: Optional[str] = None
     location: Optional[str]
     status: str
     created_at: datetime

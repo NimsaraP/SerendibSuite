@@ -2,7 +2,7 @@ import uuid
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status, Response
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -10,6 +10,7 @@ from backend.app.database.db import get_db
 from backend.app.models.event import Event
 from backend.app.models.photo import Photo
 from backend.app.models.photo_analysis import PhotoAnalysis
+from backend.app.models.culling_override import CullingOverride
 from backend.app.schemas.photo import (
     PhotoRead,
     AnalysisRead,
@@ -28,9 +29,9 @@ from backend.app.schemas.photo import (
 ALLOWED_MIME_TYPES = {"image/jpeg", "image/png"}
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 
-# Maximum upload size: 20 MB.
+# Maximum upload size: 50 MB (supports full-res camera JPEGs/PNGs).
 # Files larger than this are rejected before being written to disk.
-MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024  # 20 MB
+MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024  # 50 MB
 
 # Storage root: always relative to the project root, not to this file.
 # Path(__file__) → backend/app/api/photos.py
@@ -128,8 +129,20 @@ async def upload_photo(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=(
                 f"File is too large ({file_size:,} bytes). "
-                f"Maximum allowed size is {MAX_FILE_SIZE_BYTES:,} bytes (20 MB)."
+                f"Maximum allowed size is {MAX_FILE_SIZE_BYTES // (1024 * 1024)} MB."
             ),
+        )
+
+    # 4.1 Validate image integrity (ensures file is not a renamed binary or corrupt file)
+    import io
+    from PIL import Image
+    try:
+        test_img = Image.open(io.BytesIO(contents))
+        test_img.verify()
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Uploaded file '{original_name}' is corrupt or not a valid image format.",
         )
 
     # ------------------------------------------------------------------
@@ -244,6 +257,7 @@ def list_photos_with_analysis(
                 is_blurry=analysis.is_blurry,
                 face_detected=analysis.face_detected,
                 eyes_status=analysis.eyes_status,
+                similarity_group=analysis.similarity_group,
                 ai_recommendation=analysis.ai_recommendation,
                 photographer_decision=analysis.photographer_decision,
                 reason=None,   # reason is a pipeline artefact, not stored
@@ -259,6 +273,104 @@ def list_photos_with_analysis(
             )
         )
     return result
+
+
+# ---------------------------------------------------------------------------
+# GET /api/photos/burst-groups?event_id={event_id}
+# ---------------------------------------------------------------------------
+@router.get("/burst-groups")
+def get_burst_groups(
+    event_id: int,
+    max_distance: int = 10,
+    db: Session = Depends(get_db),
+):
+    """
+    Cluster photos in an event into burst / near-duplicate groups using pHash.
+    Identifies the best frame in each group based on sharpness and eye detection.
+    """
+    import sys
+    project_root = str(STORAGE_ROOT.parent)
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
+    from ai.similarity import find_burst_groups
+
+    photos_with_analysis = list_photos_with_analysis(event_id=event_id, db=db)
+    # Convert Pydantic models to dicts for clustering
+    photo_dicts = [p.model_dump() for p in photos_with_analysis]
+
+    # Include similarity_group from database for each photo
+    for pd in photo_dicts:
+        photo_id = pd["id"]
+        pa = db.query(PhotoAnalysis).filter(PhotoAnalysis.photo_id == photo_id).first()
+        if pa and pa.similarity_group:
+            if pd.get("analysis") is None:
+                pd["analysis"] = {}
+            pd["analysis"]["similarity_group"] = pa.similarity_group
+
+    groups = find_burst_groups(photo_dicts, max_distance=max_distance)
+    return {
+        "event_id": event_id,
+        "burst_group_count": len(groups),
+        "total_burst_photos": sum(g["count"] for g in groups),
+        "groups": groups,
+    }
+
+
+# ---------------------------------------------------------------------------
+# GET /api/photos/personalization-insights
+# ---------------------------------------------------------------------------
+@router.get("/personalization-insights")
+def get_personalization_insights(db: Session = Depends(get_db)):
+    """
+    Returns learned preferences, adaptive blur threshold, and override statistics
+    derived from the photographer's decision history.
+    """
+    import sys
+    project_root = str(STORAGE_ROOT.parent)
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
+    from ai.personalization import compute_personalization_insights
+    return compute_personalization_insights(db)
+
+
+# ---------------------------------------------------------------------------
+# GET /api/photos/export-xmp?event_id={event_id}
+# ---------------------------------------------------------------------------
+@router.get("/export-xmp")
+def export_event_xmp(
+    event_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Generates and downloads a ZIP bundle of Adobe XMP sidecar files for all photos
+    in the event. Can be directly imported into Adobe Lightroom or Photo Mechanic.
+    """
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if event is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Event with id={event_id} does not exist.",
+        )
+
+    photos_with_analysis = list_photos_with_analysis(event_id=event_id, db=db)
+    photo_dicts = [p.model_dump() for p in photos_with_analysis]
+
+    from backend.app.api.export_xmp import create_xmp_zip_bundle
+    zip_bytes = create_xmp_zip_bundle(event_name=event.name, photo_items=photo_dicts)
+
+    safe_name = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in event.name)
+    filename = f"{safe_name}_xmp_culling.zip"
+
+    return Response(
+        content=zip_bytes,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Access-Control-Expose-Headers": "Content-Disposition",
+        },
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -393,7 +505,9 @@ def analyse_photo(photo_id: int, db: Session = Depends(get_db)):
             sys.path.insert(0, project_root)
 
         from ai.pipeline import run_pipeline
-        result = run_pipeline(abs_path)
+        from ai.personalization import get_personalized_blur_threshold
+        personalized_threshold = get_personalized_blur_threshold(db)
+        result = run_pipeline(abs_path, blur_threshold=personalized_threshold)
 
     except FileNotFoundError as exc:
         raise HTTPException(
@@ -500,6 +614,24 @@ def set_photographer_decision(
         )
 
     # 3. Apply the decision (Pydantic already validated it is keep|reject).
+    is_override = (
+        analysis.ai_recommendation is not None
+        and body.decision != analysis.ai_recommendation
+    )
+
+    if is_override:
+        override_record = CullingOverride(
+            photo_id=photo.id,
+            event_id=photo.event_id,
+            ai_recommendation=analysis.ai_recommendation,
+            photographer_decision=body.decision,
+            blur_score=analysis.blur_score,
+            is_blurry=analysis.is_blurry,
+            face_detected=analysis.face_detected,
+            eyes_status=analysis.eyes_status,
+        )
+        db.add(override_record)
+
     analysis.photographer_decision = body.decision
     db.commit()
     db.refresh(analysis)
