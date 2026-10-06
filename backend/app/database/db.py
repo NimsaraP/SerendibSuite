@@ -22,21 +22,31 @@ _storage_dir = Path(__file__).resolve().parents[3] / "storage"
 _storage_dir.mkdir(parents=True, exist_ok=True)
 
 if not DATABASE_URL:
-    # Zero-configuration default: use SQLite in storage directory so the app
-    # works immediately without requiring a running MySQL server.
     sqlite_path = _storage_dir / "serendibsuite.db"
     DATABASE_URL = f"sqlite:///{sqlite_path.as_posix()}"
     print(f"[db] DATABASE_URL not set in .env. Using default SQLite: {DATABASE_URL}")
 
-# SQLAlchemy Engine
-# SQLite does not support pool_pre_ping and needs check_same_thread=False
-if DATABASE_URL.startswith("sqlite"):
+# SQLAlchemy Engine with automatic resilient fallback
+if not DATABASE_URL.startswith("sqlite"):
+    try:
+        test_engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+        with test_engine.connect() as test_conn:
+            test_conn.execute(text("SELECT 1"))
+        engine = test_engine
+        print(f"[db] Connected to MySQL successfully: {DATABASE_URL}")
+    except Exception as exc:
+        print(f"[db] Notice: Could not connect to MySQL server ({exc}). Falling back to SQLite automatically.")
+        sqlite_path = _storage_dir / "serendibsuite.db"
+        DATABASE_URL = f"sqlite:///{sqlite_path.as_posix()}"
+        engine = create_engine(
+            DATABASE_URL,
+            connect_args={"check_same_thread": False},
+        )
+else:
     engine = create_engine(
         DATABASE_URL,
         connect_args={"check_same_thread": False},
     )
-else:
-    engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
 # ---------------------------------------------------------------------------
 # Session factory
