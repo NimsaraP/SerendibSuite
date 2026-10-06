@@ -4,6 +4,7 @@ from pathlib import Path
 import cv2
 
 from backend.app.database.db import SessionLocal
+from backend.app.models.user import User
 from backend.app.models.client import Client
 from backend.app.models.booking import Booking
 from backend.app.models.event import Event
@@ -101,7 +102,9 @@ def populate():
         # Get or create client
         client = db.query(Client).first()
         if not client:
-            client = Client(name="Perera & Silva Wedding", email="couple@serendib.test", phone="+94 77 123 4567")
+            user = db.query(User).first()
+            user_id = user.id if user else 1
+            client = Client(user_id=user_id, name="Perera & Silva Wedding", email="couple@serendib.test", phone="+94 77 123 4567")
             db.add(client)
             db.commit()
             db.refresh(client)
