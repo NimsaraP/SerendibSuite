@@ -2,6 +2,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from backend.app.database.db import get_db
 from backend.app.models.client import Client
@@ -73,6 +74,44 @@ def create_client(payload: ClientCreate, db: Session = Depends(get_db)):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"User with id={data['user_id']} does not exist.",
             )
+
+    name_clean = data["name"].strip()
+    email_clean = data["email"].strip().lower()
+
+    # 1. Reject duplicate client name / username (case-insensitive)
+    existing_name = db.query(Client).filter(
+        func.lower(Client.name) == name_clean.lower()
+    ).first()
+    if existing_name:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"A client with name '{name_clean}' already exists. Duplicate usernames/names are not allowed.",
+        )
+
+    # 2. Reject duplicate email address (case-insensitive)
+    existing_email = db.query(Client).filter(
+        func.lower(Client.email) == email_clean
+    ).first()
+    if existing_email:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Email address '{data['email'].strip()}' is already registered to client '{existing_email.name}'. Duplicate emails are not allowed.",
+        )
+
+    # 3. Reject duplicate phone number
+    if data.get("phone"):
+        phone_raw = data["phone"].strip()
+        phone_digits = "".join(c for c in phone_raw if c.isdigit())
+        if phone_digits:
+            all_clients_with_phone = db.query(Client).filter(Client.phone.isnot(None)).all()
+            for c in all_clients_with_phone:
+                c_digits = "".join(ch for ch in (c.phone or "") if ch.isdigit())
+                if c_digits:
+                    if c_digits == phone_digits or (len(c_digits) >= 9 and len(phone_digits) >= 9 and c_digits[-9:] == phone_digits[-9:]):
+                        raise HTTPException(
+                            status_code=status.HTTP_409_CONFLICT,
+                            detail=f"Phone number '{phone_raw}' is already registered to client '{c.name}'. Duplicate phone numbers are not allowed.",
+                        )
 
     new_client = Client(**data)
 

@@ -2112,6 +2112,12 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.25) !important;
 }
 
+.input-warning {
+    border-color: #f59e0b !important;
+    background-color: rgba(245, 158, 11, 0.08) !important;
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25) !important;
+}
+
 .field-error-msg {
     display: block;
     color: var(--color-red);
@@ -2119,6 +2125,25 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     font-weight: 500;
     margin-top: 4px;
     line-height: 1.3;
+}
+
+.field-warning-msg {
+    display: block;
+    color: #fbbf24;
+    font-size: 11px;
+    font-weight: 500;
+    margin-top: 4px;
+    line-height: 1.3;
+}
+
+.form-warning {
+    color: #fbbf24;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 13px;
+    margin-top: 12px;
 }
 
 #toast-container {
@@ -2158,6 +2183,12 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     background: #4c0519;
     border: 1px solid #e11d48;
     color: #ffe4e6;
+}
+
+.toast-warning {
+    background: #451a03;
+    border: 1px solid #d97706;
+    color: #fef3c7;
 }
 
 .toast-icon {

@@ -2,6 +2,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from backend.app.database.db import get_db
 from backend.app.models.booking import Booking
@@ -45,6 +46,19 @@ def create_booking(payload: BookingCreate, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Client with id={payload.client_id} does not exist.",
+        )
+
+    title_clean = payload.title.strip()
+
+    # Guard: A client can have multiple bookings, but duplicate bookings with the same title are rejected.
+    existing_booking = db.query(Booking).filter(
+        Booking.client_id == payload.client_id,
+        func.lower(Booking.title) == title_clean.lower(),
+    ).first()
+    if existing_booking:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"A booking titled '{title_clean}' already exists for client '{client.name}' (Booking #{existing_booking.id}). Duplicate bookings are not allowed.",
         )
 
     # model_dump() → plain Python dict → ** unpacks as keyword args to Booking()

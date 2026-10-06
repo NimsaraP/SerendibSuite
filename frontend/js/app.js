@@ -87,6 +87,11 @@ navLinks.forEach(link => {
 let pendingBookingClientId = null;
 let pendingEventBookingId = null;
 
+// Global cached dataset for live filters and duplicate checking
+let _allClientsData = [];
+let _allBookingsData = [];
+let _allEventsData = [];
+
 // ---------------------------------------------------------------------------
 // Utility helpers
 // ---------------------------------------------------------------------------
@@ -178,6 +183,9 @@ async function loadDashboard() {
             getBookings(),
             getEvents(),
         ]);
+        _allClientsData = clients;
+        _allBookingsData = bookings;
+        _allEventsData = events;
 
         document.getElementById("stat-clients").textContent  = clients.length;
         document.getElementById("stat-bookings").textContent = bookings.length;
@@ -252,7 +260,6 @@ async function loadDashboard() {
 // ---------------------------------------------------------------------------
 // Events list & Live Filters
 // ---------------------------------------------------------------------------
-let _allEventsData = [];
 let _eventsFilterWired = false;
 
 function parseEventHour(timeStr) {
@@ -1396,12 +1403,8 @@ async function handleUpload(eventId, filesToUpload = null) {
 }
 
 // ---------------------------------------------------------------------------
-// Clients list
-// ---------------------------------------------------------------------------
-// ---------------------------------------------------------------------------
 // Clients list & Live Filters
 // ---------------------------------------------------------------------------
-let _allClientsData = [];
 let _clientsFilterWired = false;
 
 function renderClientsTable(clientsToRender) {
@@ -1514,7 +1517,6 @@ async function loadClients() {
 // ---------------------------------------------------------------------------
 // Bookings list & Live Filters
 // ---------------------------------------------------------------------------
-let _allBookingsData = [];
 let _bookingsFilterWired = false;
 
 function renderBookingsTable(bookingsToRender) {
@@ -1755,12 +1757,14 @@ function isValidPhone(phone) {
 
 function setInputError(inputEl, message) {
     if (!inputEl) return;
+    clearInputWarning(inputEl);
     inputEl.classList.add("input-error");
-    let errEl = inputEl.parentElement.querySelector(".field-error-msg");
+    const container = inputEl.closest("label") || inputEl.parentElement;
+    let errEl = container.querySelector(".field-error-msg");
     if (!errEl) {
         errEl = document.createElement("span");
         errEl.className = "field-error-msg";
-        inputEl.parentElement.appendChild(errEl);
+        container.appendChild(errEl);
     }
     errEl.textContent = message;
 }
@@ -1768,13 +1772,38 @@ function setInputError(inputEl, message) {
 function clearInputError(inputEl) {
     if (!inputEl) return;
     inputEl.classList.remove("input-error");
-    const errEl = inputEl.parentElement.querySelector(".field-error-msg");
+    const container = inputEl.closest("label") || inputEl.parentElement;
+    const errEl = container.querySelector(".field-error-msg");
     if (errEl) errEl.remove();
+}
+
+function setInputWarning(inputEl, message) {
+    if (!inputEl) return;
+    clearInputError(inputEl);
+    inputEl.classList.add("input-warning");
+    const container = inputEl.closest("label") || inputEl.parentElement;
+    let warnEl = container.querySelector(".field-warning-msg");
+    if (!warnEl) {
+        warnEl = document.createElement("span");
+        warnEl.className = "field-warning-msg";
+        container.appendChild(warnEl);
+    }
+    warnEl.textContent = `⚠️ Warning: ${message}`;
+}
+
+function clearInputWarning(inputEl) {
+    if (!inputEl) return;
+    inputEl.classList.remove("input-warning");
+    const container = inputEl.closest("label") || inputEl.parentElement;
+    const warnEl = container.querySelector(".field-warning-msg");
+    if (warnEl) warnEl.remove();
 }
 
 function clearAllFormErrors(form) {
     form.querySelectorAll(".input-error").forEach(el => el.classList.remove("input-error"));
+    form.querySelectorAll(".input-warning").forEach(el => el.classList.remove("input-warning"));
     form.querySelectorAll(".field-error-msg").forEach(el => el.remove());
+    form.querySelectorAll(".field-warning-msg").forEach(el => el.remove());
 }
 
 function showToast(message, type = "success") {
@@ -1786,13 +1815,15 @@ function showToast(message, type = "success") {
     }
     const toast = document.createElement("div");
     toast.className = `toast toast-${type}`;
-    const icon = type === "success" ? "&#10003;" : "&#9888;";
+    let icon = "&#10003;";
+    if (type === "error") icon = "&#9888;";
+    if (type === "warning") icon = "&#9888;";
     toast.innerHTML = `<span class="toast-icon">${icon}</span> <span>${escapeHtml(message)}</span>`;
     container.appendChild(toast);
     setTimeout(() => {
         toast.classList.add("fade-out");
         setTimeout(() => toast.remove(), 400);
-    }, 3800);
+    }, 4500);
 }
 
 function showFormError(elementId, message) {
@@ -1805,6 +1836,81 @@ function showFormError(elementId, message) {
     }
     el.hidden = false;
     el.textContent = message;
+}
+
+function showFormWarning(elementId, message) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    if (!message) {
+        el.hidden = true;
+        el.textContent = "";
+        return;
+    }
+    el.hidden = false;
+    el.innerHTML = `<strong>⚠️ Warning:</strong> ${escapeHtml(message)}`;
+}
+
+function normalizeDigits(str) {
+    return (str || "").replace(/\D/g, "");
+}
+
+function findDuplicateClientName(name, excludeId = null) {
+    const clean = (name || "").trim().toLowerCase();
+    if (!clean) return null;
+    return _allClientsData.find(c => (!excludeId || c.id !== excludeId) && (c.name || "").trim().toLowerCase() === clean);
+}
+
+function findDuplicateClientEmail(email, excludeId = null) {
+    const clean = (email || "").trim().toLowerCase();
+    if (!clean) return null;
+    return _allClientsData.find(c => (!excludeId || c.id !== excludeId) && (c.email || "").trim().toLowerCase() === clean);
+}
+
+function findDuplicateClientPhone(phone, excludeId = null) {
+    const digits = normalizeDigits(phone);
+    if (!digits) return null;
+    return _allClientsData.find(c => {
+        if (excludeId && c.id === excludeId) return false;
+        const cDigits = normalizeDigits(c.phone);
+        if (!cDigits) return false;
+        if (cDigits === digits) return true;
+        if (cDigits.length >= 9 && digits.length >= 9 && cDigits.slice(-9) === digits.slice(-9)) return true;
+        return false;
+    });
+}
+
+function findDuplicateBooking(clientId, title, excludeId = null) {
+    const cId = Number(clientId);
+    const cleanTitle = (title || "").trim().toLowerCase();
+    if (!cId || !cleanTitle) return null;
+    return _allBookingsData.find(b => {
+        if (excludeId && b.id === excludeId) return false;
+        return Number(b.client_id) === cId && (b.title || "").trim().toLowerCase() === cleanTitle;
+    });
+}
+
+function findDuplicateEventName(bookingId, name, excludeId = null) {
+    const bId = Number(bookingId);
+    const cleanName = (name || "").trim().toLowerCase();
+    if (!bId || !cleanName) return null;
+    return _allEventsData.find(e => {
+        if (excludeId && e.id === excludeId) return false;
+        return Number(e.booking_id) === bId && (e.name || "").trim().toLowerCase() === cleanName;
+    });
+}
+
+function findDuplicateEventSlot(bookingId, date, time, excludeId = null) {
+    const bId = Number(bookingId);
+    const cleanDate = (date || "").slice(0, 10);
+    const cleanTime = (time || "").trim();
+    if (!bId || !cleanDate || !cleanTime) return null;
+    return _allEventsData.find(e => {
+        if (excludeId && e.id === excludeId) return false;
+        if (Number(e.booking_id) !== bId) return false;
+        const eDate = (e.event_date || "").slice(0, 10);
+        const eTime = (e.event_time || "").trim();
+        return eDate === cleanDate && eTime === cleanTime;
+    });
 }
 
 function setFormBusy(form, busy) {
@@ -1883,6 +1989,7 @@ async function handleCreateClient(e) {
     e.preventDefault();
     const form = e.currentTarget;
     showFormError("client-form-error", "");
+    showFormWarning("client-form-warning", "");
     clearAllFormErrors(form);
 
     const nameInput = document.getElementById("client-name");
@@ -1937,6 +2044,36 @@ async function handleCreateClient(e) {
         return;
     }
 
+    // Duplicate checks for client name/username, email, phone
+    const dupName = findDuplicateClientName(nameVal);
+    if (dupName) {
+        setInputWarning(nameInput, `A client with name "${nameVal}" already exists.`);
+        showFormWarning("client-form-warning", `Cannot create client: The name/username "${nameVal}" is already registered. Please choose a unique name.`);
+        showToast(`Warning: Client name "${nameVal}" already exists!`, "warning");
+        nameInput.focus();
+        return;
+    }
+
+    const dupEmail = findDuplicateClientEmail(emailVal);
+    if (dupEmail) {
+        setInputWarning(emailInput, `This email is already registered to client "${dupEmail.name}".`);
+        showFormWarning("client-form-warning", `Cannot create client: The email "${emailVal}" is already registered to client "${dupEmail.name}". Duplicate emails are not allowed.`);
+        showToast("Warning: This email address is already registered!", "warning");
+        emailInput.focus();
+        return;
+    }
+
+    if (phoneVal) {
+        const dupPhone = findDuplicateClientPhone(phoneVal);
+        if (dupPhone) {
+            setInputWarning(phoneInput, `This phone number is already registered to client "${dupPhone.name}".`);
+            showFormWarning("client-form-warning", `Cannot create client: The phone number "${phoneVal}" is already registered to client "${dupPhone.name}". Duplicate phone numbers are not allowed.`);
+            showToast("Warning: This phone number is already registered!", "warning");
+            phoneInput.focus();
+            return;
+        }
+    }
+
     setFormBusy(form, true);
 
     try {
@@ -1946,9 +2083,11 @@ async function handleCreateClient(e) {
             phone: optionalText(phoneVal),
             notes: optionalText(notesVal),
         });
+        _allClientsData.push(created);
         pendingBookingClientId = created.id;
         form.reset();
         clearAllFormErrors(form);
+        showFormWarning("client-form-warning", "");
         showToast(`Client "${created.name}" created successfully!`);
         showSection("section-bookings");
     } catch (err) {
@@ -1957,14 +2096,14 @@ async function handleCreateClient(e) {
         showToast(msg, "error");
         console.error("[CreateClient]", err);
         const lower = msg.toLowerCase();
-        if (lower.includes("name")) {
-            setInputError(nameInput, msg);
+        if (lower.includes("name") || lower.includes("username")) {
+            setInputWarning(nameInput, msg);
             nameInput.focus();
         } else if (lower.includes("email")) {
-            setInputError(emailInput, msg);
+            setInputWarning(emailInput, msg);
             emailInput.focus();
         } else if (lower.includes("phone")) {
-            setInputError(phoneInput, msg);
+            setInputWarning(phoneInput, msg);
             phoneInput.focus();
         }
     } finally {
@@ -1976,6 +2115,7 @@ async function handleCreateBooking(e) {
     e.preventDefault();
     const form = e.currentTarget;
     showFormError("booking-form-error", "");
+    showFormWarning("booking-form-warning", "");
     clearAllFormErrors(form);
 
     const clientSelect = document.getElementById("booking-client");
@@ -2034,6 +2174,16 @@ async function handleCreateBooking(e) {
         return;
     }
 
+    // Duplicate check: One client can have multiple bookings, but duplicate booking titles are not allowed.
+    const dupBooking = findDuplicateBooking(clientId, titleVal);
+    if (dupBooking) {
+        setInputWarning(titleInput, `A booking titled "${titleVal}" already exists for this client (Booking #${dupBooking.id}).`);
+        showFormWarning("booking-form-warning", `Cannot create booking: A booking titled "${titleVal}" already exists for this client. Duplicate bookings are not allowed.`);
+        showToast("Warning: A booking with this title already exists for this client!", "warning");
+        titleInput.focus();
+        return;
+    }
+
     setFormBusy(form, true);
     try {
         const created = await createBooking({
@@ -2043,10 +2193,12 @@ async function handleCreateBooking(e) {
             status: statusSelect.value,
             notes: optionalText(notesVal),
         });
+        _allBookingsData.push(created);
         pendingEventBookingId = created.id;
         pendingBookingClientId = null;
         form.reset();
         clearAllFormErrors(form);
+        showFormWarning("booking-form-warning", "");
         const bookingDateEl = document.getElementById("booking-date");
         if (bookingDateEl) {
             bookingDateEl.value = todayLocalIso();
@@ -2060,6 +2212,11 @@ async function handleCreateBooking(e) {
         showFormError("booking-form-error", msg);
         showToast(msg, "error");
         console.error("[CreateBooking]", err);
+        const lower = msg.toLowerCase();
+        if (lower.includes("title") || lower.includes("duplicate")) {
+            setInputWarning(titleInput, msg);
+            titleInput.focus();
+        }
     } finally {
         setFormBusy(form, false);
     }
@@ -2069,6 +2226,7 @@ async function handleCreateEvent(e) {
     e.preventDefault();
     const form = e.currentTarget;
     showFormError("event-form-error", "");
+    showFormWarning("event-form-warning", "");
     clearAllFormErrors(form);
 
     const bookingSelect = document.getElementById("event-booking");
@@ -2129,6 +2287,27 @@ async function handleCreateEvent(e) {
         return;
     }
 
+    // Duplicate check: One booking can have multiple events, but duplicate event names and identical time slots are rejected.
+    const dupEventName = findDuplicateEventName(bookingId, nameVal);
+    if (dupEventName) {
+        setInputWarning(nameInput, `An event named "${nameVal}" already exists for this booking (Event #${dupEventName.id}).`);
+        showFormWarning("event-form-warning", `Cannot create event: An event named "${nameVal}" already exists for this booking. Duplicate events are not allowed.`);
+        showToast("Warning: An event with this name already exists for this booking!", "warning");
+        nameInput.focus();
+        return;
+    }
+
+    if (timeVal) {
+        const dupSlot = findDuplicateEventSlot(bookingId, dateVal, timeVal);
+        if (dupSlot) {
+            setInputWarning(timeInput, `An event ("${dupSlot.name}") is already scheduled at ${timeVal} on ${dateVal} for this booking.`);
+            showFormWarning("event-form-warning", `Cannot create event: An event ("${dupSlot.name}") is already scheduled at ${timeVal} on ${dateVal} for this booking. Duplicate time slots are not allowed.`);
+            showToast("Warning: An event is already scheduled at this date & time for this booking!", "warning");
+            timeInput.focus();
+            return;
+        }
+    }
+
     setFormBusy(form, true);
     try {
         const created = await createEvent({
@@ -2139,9 +2318,11 @@ async function handleCreateEvent(e) {
             location: optionalText(locationVal),
             status: statusSelect.value,
         });
+        _allEventsData.push(created);
         pendingEventBookingId = null;
         form.reset();
         clearAllFormErrors(form);
+        showFormWarning("event-form-warning", "");
         const eventDateEl = document.getElementById("event-date");
         if (eventDateEl) {
             eventDateEl.value = todayLocalIso();
@@ -2159,6 +2340,16 @@ async function handleCreateEvent(e) {
         showFormError("event-form-error", msg);
         showToast(msg, "error");
         console.error("[CreateEvent]", err);
+        const lower = msg.toLowerCase();
+        if (lower.includes("name") || lower.includes("duplicate")) {
+            setInputWarning(nameInput, msg);
+            nameInput.focus();
+        } else if (lower.includes("time") || lower.includes("slot") || lower.includes("scheduled")) {
+            if (timeInput) {
+                setInputWarning(timeInput, msg);
+                timeInput.focus();
+            }
+        }
     } finally {
         setFormBusy(form, false);
     }
@@ -2436,74 +2627,204 @@ function wireCreateForms() {
     if (eventForm) eventForm.addEventListener("submit", handleCreateEvent);
 
     // Live validation for Client Name (strictly reject numbers)
+    // Live validation & duplicate check for Client Name
     const clientNameInput = document.getElementById("client-name");
     if (clientNameInput) {
-        clientNameInput.addEventListener("input", () => {
+        const validateAndCheckDupName = () => {
             const val = clientNameInput.value;
             if (/\d/.test(val)) {
                 setInputError(clientNameInput, "Client name cannot contain numbers. Only letters are allowed.");
+                return;
             } else if (val && !/^[A-Za-z\s\.\'\-]*$/.test(val)) {
                 setInputError(clientNameInput, "Client name can only contain letters, spaces, hyphens, and apostrophes.");
+                return;
             } else {
                 clearInputError(clientNameInput);
             }
-        });
+
+            const clean = val.trim();
+            if (clean.length >= 2) {
+                const dup = findDuplicateClientName(clean);
+                if (dup) {
+                    setInputWarning(clientNameInput, `Client name "${dup.name}" is already registered.`);
+                } else {
+                    clearInputWarning(clientNameInput);
+                }
+            } else {
+                clearInputWarning(clientNameInput);
+            }
+        };
+
+        clientNameInput.addEventListener("input", validateAndCheckDupName);
         clientNameInput.addEventListener("blur", () => {
             const val = clientNameInput.value.trim();
             if (val) {
                 const check = validateClientName(val);
-                if (!check.valid) setInputError(clientNameInput, check.error);
+                if (!check.valid) {
+                    setInputError(clientNameInput, check.error);
+                } else {
+                    validateAndCheckDupName();
+                }
             }
         });
     }
 
-    // Live validation for Client Phone (strictly reject letters)
+    // Live validation & duplicate check for Client Phone
     const clientPhoneInput = document.getElementById("client-phone");
     if (clientPhoneInput) {
-        clientPhoneInput.addEventListener("input", () => {
+        const validateAndCheckDupPhone = () => {
             const val = clientPhoneInput.value;
             if (/[a-zA-Z]/.test(val)) {
                 setInputError(clientPhoneInput, "Phone number cannot contain letters. Numbers only (e.g. +94 77 123 4567).");
+                return;
             } else if (val && !/^\+?[0-9\s\-\(\)]*$/.test(val)) {
                 setInputError(clientPhoneInput, "Phone number contains invalid characters. Numbers, +, -, and spaces only.");
+                return;
             } else {
                 clearInputError(clientPhoneInput);
             }
-        });
+
+            const clean = val.trim();
+            if (clean.length >= 7) {
+                const dup = findDuplicateClientPhone(clean);
+                if (dup) {
+                    setInputWarning(clientPhoneInput, `Phone number is already registered to "${dup.name}".`);
+                } else {
+                    clearInputWarning(clientPhoneInput);
+                }
+            } else {
+                clearInputWarning(clientPhoneInput);
+            }
+        };
+
+        clientPhoneInput.addEventListener("input", validateAndCheckDupPhone);
         clientPhoneInput.addEventListener("blur", () => {
             const val = clientPhoneInput.value.trim();
             if (val) {
                 const check = validateClientPhone(val);
-                if (!check.valid) setInputError(clientPhoneInput, check.error);
+                if (!check.valid) {
+                    setInputError(clientPhoneInput, check.error);
+                } else {
+                    validateAndCheckDupPhone();
+                }
             }
         });
     }
 
-    // Live validation for Client Email
+    // Live validation & duplicate check for Client Email
     const clientEmailInput = document.getElementById("client-email");
     if (clientEmailInput) {
-        clientEmailInput.addEventListener("input", () => {
+        const validateAndCheckDupEmail = () => {
             const val = clientEmailInput.value;
             if (/\s/.test(val)) {
                 setInputError(clientEmailInput, "Email address cannot contain spaces.");
+                return;
             } else {
                 clearInputError(clientEmailInput);
             }
-        });
+
+            const clean = val.trim();
+            if (clean.length >= 4 && clean.includes("@")) {
+                const dup = findDuplicateClientEmail(clean);
+                if (dup) {
+                    setInputWarning(clientEmailInput, `Email is already registered to "${dup.name}".`);
+                } else {
+                    clearInputWarning(clientEmailInput);
+                }
+            } else {
+                clearInputWarning(clientEmailInput);
+            }
+        };
+
+        clientEmailInput.addEventListener("input", validateAndCheckDupEmail);
         clientEmailInput.addEventListener("blur", () => {
             const val = clientEmailInput.value.trim();
             if (val) {
                 const check = validateClientEmail(val);
-                if (!check.valid) setInputError(clientEmailInput, check.error);
+                if (!check.valid) {
+                    setInputError(clientEmailInput, check.error);
+                } else {
+                    validateAndCheckDupEmail();
+                }
             }
         });
+    }
+
+    // Live duplicate check for Booking Form
+    const bookingClientSelect = document.getElementById("booking-client");
+    const bookingTitleInput = document.getElementById("booking-title");
+    function checkBookingDuplicateLive() {
+        if (!bookingClientSelect || !bookingTitleInput) return;
+        const cId = bookingClientSelect.value;
+        const title = bookingTitleInput.value.trim();
+        if (cId && title.length >= 2) {
+            const dup = findDuplicateBooking(cId, title);
+            if (dup) {
+                setInputWarning(bookingTitleInput, `A booking titled "${title}" already exists for this client.`);
+                return;
+            }
+        }
+        clearInputWarning(bookingTitleInput);
+    }
+    if (bookingClientSelect) bookingClientSelect.addEventListener("change", checkBookingDuplicateLive);
+    if (bookingTitleInput) {
+        bookingTitleInput.addEventListener("input", checkBookingDuplicateLive);
+        bookingTitleInput.addEventListener("blur", checkBookingDuplicateLive);
+    }
+
+    // Live duplicate check for Event Form
+    const eventBookingSelect = document.getElementById("event-booking");
+    const eventNameInput = document.getElementById("event-name");
+    const eventDateInput = document.getElementById("event-date");
+    const eventTimeInput = document.getElementById("event-time");
+    function checkEventDuplicateLive() {
+        if (!eventBookingSelect || !eventNameInput) return;
+        const bId = eventBookingSelect.value;
+        const name = eventNameInput.value.trim();
+        if (bId && name.length >= 2) {
+            const dupName = findDuplicateEventName(bId, name);
+            if (dupName) {
+                setInputWarning(eventNameInput, `An event named "${name}" already exists for this booking.`);
+            } else {
+                clearInputWarning(eventNameInput);
+            }
+        } else {
+            clearInputWarning(eventNameInput);
+        }
+
+        if (bId && eventDateInput && eventTimeInput) {
+            const dVal = eventDateInput.value;
+            const tVal = eventTimeInput.value.trim();
+            if (dVal && tVal) {
+                const dupSlot = findDuplicateEventSlot(bId, dVal, tVal);
+                if (dupSlot) {
+                    setInputWarning(eventTimeInput, `Slot already booked for event "${dupSlot.name}".`);
+                    return;
+                }
+            }
+            clearInputWarning(eventTimeInput);
+        }
+    }
+    if (eventBookingSelect) eventBookingSelect.addEventListener("change", checkEventDuplicateLive);
+    if (eventNameInput) {
+        eventNameInput.addEventListener("input", checkEventDuplicateLive);
+        eventNameInput.addEventListener("blur", checkEventDuplicateLive);
+    }
+    if (eventDateInput) {
+        eventDateInput.addEventListener("change", checkEventDuplicateLive);
+        eventDateInput.addEventListener("input", checkEventDuplicateLive);
+    }
+    if (eventTimeInput) {
+        eventTimeInput.addEventListener("change", checkEventDuplicateLive);
+        eventTimeInput.addEventListener("input", checkEventDuplicateLive);
     }
 
     // Generic clear errors for other fields on input
     [clientForm, bookingForm, eventForm].forEach(form => {
         if (!form) return;
         form.querySelectorAll("input, select, textarea").forEach(field => {
-            if (field !== clientNameInput && field !== clientPhoneInput && field !== clientEmailInput) {
+            if (field !== clientNameInput && field !== clientPhoneInput && field !== clientEmailInput &&
+                field !== bookingTitleInput && field !== eventNameInput && field !== eventTimeInput) {
                 field.addEventListener("input", () => clearInputError(field));
                 field.addEventListener("change", () => clearInputError(field));
             }

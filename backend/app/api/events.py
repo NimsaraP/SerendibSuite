@@ -2,6 +2,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from backend.app.database.db import get_db
 from backend.app.models.event import Event
@@ -46,6 +47,33 @@ def create_event(payload: EventCreate, db: Session = Depends(get_db)):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Booking with id={payload.booking_id} does not exist.",
         )
+
+    name_clean = payload.name.strip()
+
+    # 1. Guard: Check for duplicate event name under this booking
+    existing_name = db.query(Event).filter(
+        Event.booking_id == payload.booking_id,
+        func.lower(Event.name) == name_clean.lower(),
+    ).first()
+    if existing_name:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"An event named '{name_clean}' already exists for this booking (Event #{existing_name.id}). Duplicate event names are not allowed.",
+        )
+
+    # 2. Guard: Check for duplicate date & time slot under this booking
+    if payload.event_time:
+        time_clean = payload.event_time.strip()
+        existing_slot = db.query(Event).filter(
+            Event.booking_id == payload.booking_id,
+            Event.event_date == payload.event_date,
+            Event.event_time == time_clean,
+        ).first()
+        if existing_slot:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"An event ('{existing_slot.name}') is already scheduled at {time_clean} on {payload.event_date} for this booking. Duplicate time slots are not allowed.",
+            )
 
     # model_dump() → plain Python dict → ** unpacks as keyword args to Event()
     new_event = Event(**payload.model_dump())
