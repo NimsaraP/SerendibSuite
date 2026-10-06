@@ -250,68 +250,176 @@ async function loadDashboard() {
 }
 
 // ---------------------------------------------------------------------------
-// Events list
+// Events list & Live Filters
 // ---------------------------------------------------------------------------
+let _allEventsData = [];
+let _eventsFilterWired = false;
+
+function parseEventHour(timeStr) {
+    if (!timeStr) return -1;
+    const s = timeStr.trim();
+    const matchAmpm = s.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+    if (matchAmpm) {
+        let h = parseInt(matchAmpm[1], 10);
+        const ampm = (matchAmpm[3] || "").toUpperCase();
+        if (ampm === "PM" && h < 12) h += 12;
+        if (ampm === "AM" && h === 12) h = 0;
+        return h;
+    }
+    const match24 = s.match(/^(\d{1,2}):(\d{2})/);
+    if (match24) {
+        return parseInt(match24[1], 10);
+    }
+    return -1;
+}
+
+function renderEventsTable(eventsToRender) {
+    const container = document.getElementById("events-list");
+    if (!container) return;
+    if (eventsToRender.length === 0) {
+        container.innerHTML = `<p class="empty-msg">No events match the selected filter criteria.</p>`;
+        return;
+    }
+
+    container.innerHTML = `
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Event Name</th>
+                    <th>Date &amp; Time</th>
+                    <th>Timing</th>
+                    <th>Location</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${eventsToRender.map(ev => `
+                    <tr>
+                        <td>${ev.id}</td>
+                        <td><strong>${escapeHtml(ev.name)}</strong></td>
+                        <td>
+                            <div><strong>${formatDate(ev.event_date)}</strong></div>
+                            ${ev.event_time ? `<div class="event-time-pill">⏰ ${escapeHtml(formatTime(ev.event_time))}</div>` : '<div class="stat-hint">—</div>'}
+                        </td>
+                        <td>${getRelativeScheduleBadge(ev.event_date)}</td>
+                        <td>${escapeHtml(ev.location || "—")}</td>
+                        <td>${statusBadge(ev.status)}</td>
+                        <td>
+                            <button class="btn-open" data-id="${ev.id}">
+                                Open Event
+                            </button>
+                        </td>
+                    </tr>
+                `).join("")}
+            </tbody>
+        </table>
+    `;
+
+    container.querySelectorAll(".btn-open").forEach(btn => {
+        btn.addEventListener("click", () => openEventDetail(btn.dataset.id));
+    });
+}
+
+function applyEventFilter() {
+    const dateInput = document.getElementById("filter-event-date");
+    const timeInput = document.getElementById("filter-event-time");
+    const searchInput = document.getElementById("filter-event-search");
+    const countBadge = document.getElementById("event-filter-count");
+
+    const dateVal = dateInput ? dateInput.value : "";
+    const timeVal = timeInput ? timeInput.value : "";
+    const searchVal = searchInput ? searchInput.value.toLowerCase().trim() : "";
+
+    let filtered = _allEventsData;
+
+    if (dateVal) {
+        filtered = filtered.filter(ev => {
+            const evDate = (ev.event_date || "").slice(0, 10);
+            return evDate === dateVal;
+        });
+    }
+
+    if (timeVal) {
+        filtered = filtered.filter(ev => {
+            const hour = parseEventHour(ev.event_time);
+            if (hour < 0) return false;
+            if (timeVal === "morning") return hour < 12;
+            if (timeVal === "afternoon") return hour >= 12 && hour < 17;
+            if (timeVal === "evening") return hour >= 17;
+            return true;
+        });
+    }
+
+    if (searchVal) {
+        filtered = filtered.filter(ev => {
+            const nameMatch = (ev.name || "").toLowerCase().includes(searchVal);
+            const locMatch = (ev.location || "").toLowerCase().includes(searchVal);
+            return nameMatch || locMatch;
+        });
+    }
+
+    renderEventsTable(filtered);
+
+    if (countBadge) {
+        if (dateVal || timeVal || searchVal) {
+            countBadge.textContent = `Showing ${filtered.length} of ${_allEventsData.length}`;
+        } else {
+            countBadge.textContent = `${_allEventsData.length} total`;
+        }
+    }
+}
+
+function wireEventFilters() {
+    if (_eventsFilterWired) return;
+    _eventsFilterWired = true;
+
+    const dateInput = document.getElementById("filter-event-date");
+    const timeInput = document.getElementById("filter-event-time");
+    const searchInput = document.getElementById("filter-event-search");
+    const clearBtn = document.getElementById("btn-clear-event-filter");
+
+    if (dateInput) {
+        dateInput.addEventListener("change", applyEventFilter);
+        dateInput.addEventListener("input", applyEventFilter);
+    }
+    if (timeInput) {
+        timeInput.addEventListener("change", applyEventFilter);
+    }
+    if (searchInput) {
+        searchInput.addEventListener("input", applyEventFilter);
+    }
+    if (clearBtn) {
+        clearBtn.addEventListener("click", () => {
+            if (dateInput) dateInput.value = "";
+            if (timeInput) timeInput.value = "";
+            if (searchInput) searchInput.value = "";
+            applyEventFilter();
+        });
+    }
+}
+
 async function loadEvents() {
     const container = document.getElementById("events-list");
     showLoading("events-list");
     try {
         await populateEventBookingSelect();
+        wireEventFilters();
         const events = await getEvents();
         if (events.length === 0) {
             container.innerHTML = `<p class="empty-msg">No events yet. Use the form above to create one.</p>`;
             return;
         }
 
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
         // Sort events so closest upcoming events are placed first
-        const sortedEvents = [...events].sort((a, b) => {
+        _allEventsData = [...events].sort((a, b) => {
             const dA = new Date(a.event_date.length === 10 ? a.event_date + "T00:00:00" : a.event_date);
             const dB = new Date(b.event_date.length === 10 ? b.event_date + "T00:00:00" : b.event_date);
             return dA - dB;
         });
 
-        container.innerHTML = `
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Event Name</th>
-                        <th>Date &amp; Time</th>
-                        <th>Timing</th>
-                        <th>Location</th>
-                        <th>Status</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${sortedEvents.map(ev => `
-                        <tr>
-                            <td>${ev.id}</td>
-                            <td><strong>${escapeHtml(ev.name)}</strong></td>
-                            <td>
-                                <div><strong>${formatDate(ev.event_date)}</strong></div>
-                                ${ev.event_time ? `<div class="event-time-pill">⏰ ${escapeHtml(formatTime(ev.event_time))}</div>` : '<div class="stat-hint">—</div>'}
-                            </td>
-                            <td>${getRelativeScheduleBadge(ev.event_date)}</td>
-                            <td>${escapeHtml(ev.location || "—")}</td>
-                            <td>${statusBadge(ev.status)}</td>
-                            <td>
-                                <button class="btn-open" data-id="${ev.id}">
-                                    Open Event
-                                </button>
-                            </td>
-                        </tr>
-                    `).join("")}
-                </tbody>
-            </table>
-        `;
-
-        container.querySelectorAll(".btn-open").forEach(btn => {
-            btn.addEventListener("click", () => openEventDetail(btn.dataset.id));
-        });
+        applyEventFilter();
     } catch (err) {
         showError("events-list", err.message);
         console.error("[Events]", err);
@@ -1290,33 +1398,113 @@ async function handleUpload(eventId, filesToUpload = null) {
 // ---------------------------------------------------------------------------
 // Clients list
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Clients list & Live Filters
+// ---------------------------------------------------------------------------
+let _allClientsData = [];
+let _clientsFilterWired = false;
+
+function renderClientsTable(clientsToRender) {
+    const container = document.getElementById("clients-list");
+    if (!container) return;
+    if (clientsToRender.length === 0) {
+        container.innerHTML = `<p class="empty-msg">No clients match the selected filter criteria.</p>`;
+        return;
+    }
+    container.innerHTML = `
+        <table class="data-table">
+            <thead>
+                <tr><th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>Added Date</th></tr>
+            </thead>
+            <tbody>
+                ${clientsToRender.map(c => `
+                    <tr>
+                        <td>${c.id}</td>
+                        <td><strong>${escapeHtml(c.name)}</strong></td>
+                        <td>${escapeHtml(c.email)}</td>
+                        <td>${escapeHtml(c.phone || "—")}</td>
+                        <td>${formatDate(c.created_at)}</td>
+                    </tr>
+                `).join("")}
+            </tbody>
+        </table>
+    `;
+}
+
+function applyClientFilter() {
+    const dateInput = document.getElementById("filter-client-date");
+    const searchInput = document.getElementById("filter-client-search");
+    const countBadge = document.getElementById("client-filter-count");
+
+    const dateVal = dateInput ? dateInput.value : "";
+    const searchVal = searchInput ? searchInput.value.toLowerCase().trim() : "";
+
+    let filtered = _allClientsData;
+
+    if (dateVal) {
+        filtered = filtered.filter(c => {
+            if (!c.created_at) return false;
+            const cDate = String(c.created_at).slice(0, 10);
+            return cDate === dateVal;
+        });
+    }
+
+    if (searchVal) {
+        filtered = filtered.filter(c => {
+            const nameMatch = (c.name || "").toLowerCase().includes(searchVal);
+            const emailMatch = (c.email || "").toLowerCase().includes(searchVal);
+            const phoneMatch = (c.phone || "").toLowerCase().includes(searchVal);
+            return nameMatch || emailMatch || phoneMatch;
+        });
+    }
+
+    renderClientsTable(filtered);
+
+    if (countBadge) {
+        if (dateVal || searchVal) {
+            countBadge.textContent = `Showing ${filtered.length} of ${_allClientsData.length}`;
+        } else {
+            countBadge.textContent = `${_allClientsData.length} total`;
+        }
+    }
+}
+
+function wireClientFilters() {
+    if (_clientsFilterWired) return;
+    _clientsFilterWired = true;
+
+    const dateInput = document.getElementById("filter-client-date");
+    const searchInput = document.getElementById("filter-client-search");
+    const clearBtn = document.getElementById("btn-clear-client-filter");
+
+    if (dateInput) {
+        dateInput.addEventListener("change", applyClientFilter);
+        dateInput.addEventListener("input", applyClientFilter);
+    }
+    if (searchInput) {
+        searchInput.addEventListener("input", applyClientFilter);
+    }
+    if (clearBtn) {
+        clearBtn.addEventListener("click", () => {
+            if (dateInput) dateInput.value = "";
+            if (searchInput) searchInput.value = "";
+            applyClientFilter();
+        });
+    }
+}
+
 async function loadClients() {
     const container = document.getElementById("clients-list");
     showLoading("clients-list");
     try {
+        wireClientFilters();
         const clients = await getClients();
         if (clients.length === 0) {
             container.innerHTML = `<p class="empty-msg">No clients yet. Use the form above to create one.</p>`;
             return;
         }
-        container.innerHTML = `
-            <table class="data-table">
-                <thead>
-                    <tr><th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>Added</th></tr>
-                </thead>
-                <tbody>
-                    ${clients.map(c => `
-                        <tr>
-                            <td>${c.id}</td>
-                            <td>${c.name}</td>
-                            <td>${c.email}</td>
-                            <td>${c.phone || "—"}</td>
-                            <td>${formatDate(c.created_at)}</td>
-                        </tr>
-                    `).join("")}
-                </tbody>
-            </table>
-        `;
+        _allClientsData = clients;
+        applyClientFilter();
     } catch (err) {
         showError("clients-list", err.message);
         console.error("[Clients]", err);
@@ -1324,36 +1512,122 @@ async function loadClients() {
 }
 
 // ---------------------------------------------------------------------------
-// Bookings list
+// Bookings list & Live Filters
 // ---------------------------------------------------------------------------
+let _allBookingsData = [];
+let _bookingsFilterWired = false;
+
+function renderBookingsTable(bookingsToRender) {
+    const container = document.getElementById("bookings-list");
+    if (!container) return;
+    if (bookingsToRender.length === 0) {
+        container.innerHTML = `<p class="empty-msg">No bookings match the selected filter criteria.</p>`;
+        return;
+    }
+    container.innerHTML = `
+        <table class="data-table">
+            <thead>
+                <tr><th>#</th><th>Title</th><th>Booking Date</th><th>Status</th><th>Notes</th></tr>
+            </thead>
+            <tbody>
+                ${bookingsToRender.map(b => `
+                    <tr>
+                        <td>${b.id}</td>
+                        <td><strong>${escapeHtml(b.title)}</strong></td>
+                        <td>${formatDate(b.booking_date)}</td>
+                        <td>${statusBadge(b.status)}</td>
+                        <td>${escapeHtml(b.notes || "—")}</td>
+                    </tr>
+                `).join("")}
+            </tbody>
+        </table>
+    `;
+}
+
+function applyBookingFilter() {
+    const dateInput = document.getElementById("filter-booking-date");
+    const statusInput = document.getElementById("filter-booking-status");
+    const searchInput = document.getElementById("filter-booking-search");
+    const countBadge = document.getElementById("booking-filter-count");
+
+    const dateVal = dateInput ? dateInput.value : "";
+    const statusVal = statusInput ? statusInput.value : "";
+    const searchVal = searchInput ? searchInput.value.toLowerCase().trim() : "";
+
+    let filtered = _allBookingsData;
+
+    if (dateVal) {
+        filtered = filtered.filter(b => {
+            const bDate = (b.booking_date || "").slice(0, 10);
+            return bDate === dateVal;
+        });
+    }
+
+    if (statusVal) {
+        filtered = filtered.filter(b => b.status === statusVal);
+    }
+
+    if (searchVal) {
+        filtered = filtered.filter(b => {
+            const titleMatch = (b.title || "").toLowerCase().includes(searchVal);
+            const notesMatch = (b.notes || "").toLowerCase().includes(searchVal);
+            return titleMatch || notesMatch;
+        });
+    }
+
+    renderBookingsTable(filtered);
+
+    if (countBadge) {
+        if (dateVal || statusVal || searchVal) {
+            countBadge.textContent = `Showing ${filtered.length} of ${_allBookingsData.length}`;
+        } else {
+            countBadge.textContent = `${_allBookingsData.length} total`;
+        }
+    }
+}
+
+function wireBookingFilters() {
+    if (_bookingsFilterWired) return;
+    _bookingsFilterWired = true;
+
+    const dateInput = document.getElementById("filter-booking-date");
+    const statusInput = document.getElementById("filter-booking-status");
+    const searchInput = document.getElementById("filter-booking-search");
+    const clearBtn = document.getElementById("btn-clear-booking-filter");
+
+    if (dateInput) {
+        dateInput.addEventListener("change", applyBookingFilter);
+        dateInput.addEventListener("input", applyBookingFilter);
+    }
+    if (statusInput) {
+        statusInput.addEventListener("change", applyBookingFilter);
+    }
+    if (searchInput) {
+        searchInput.addEventListener("input", applyBookingFilter);
+    }
+    if (clearBtn) {
+        clearBtn.addEventListener("click", () => {
+            if (dateInput) dateInput.value = "";
+            if (statusInput) statusInput.value = "";
+            if (searchInput) searchInput.value = "";
+            applyBookingFilter();
+        });
+    }
+}
+
 async function loadBookings() {
     const container = document.getElementById("bookings-list");
     showLoading("bookings-list");
     try {
         await populateBookingClientSelect();
+        wireBookingFilters();
         const bookings = await getBookings();
         if (bookings.length === 0) {
             container.innerHTML = `<p class="empty-msg">No bookings yet. Use the form above to create one.</p>`;
             return;
         }
-        container.innerHTML = `
-            <table class="data-table">
-                <thead>
-                    <tr><th>#</th><th>Title</th><th>Booking Date</th><th>Status</th><th>Notes</th></tr>
-                </thead>
-                <tbody>
-                    ${bookings.map(b => `
-                        <tr>
-                            <td>${b.id}</td>
-                            <td>${b.title}</td>
-                            <td>${formatDate(b.booking_date)}</td>
-                            <td>${statusBadge(b.status)}</td>
-                            <td>${b.notes || "—"}</td>
-                        </tr>
-                    `).join("")}
-                </tbody>
-            </table>
-        `;
+        _allBookingsData = bookings;
+        applyBookingFilter();
     } catch (err) {
         showError("bookings-list", err.message);
         console.error("[Bookings]", err);
@@ -1374,6 +1648,41 @@ function todayLocalIso() {
 function optionalText(value) {
     const trimmed = (value || "").trim();
     return trimmed ? trimmed : null;
+}
+
+function updateChipState(input) {
+    if (!input) return;
+    const parent = input.closest(".input-with-presets");
+    if (!parent) return;
+    const chips = parent.querySelectorAll(".btn-chip");
+    chips.forEach(chip => chip.classList.remove("active"));
+
+    if (input.type === "date") {
+        const val = input.value;
+        if (!val) return;
+        chips.forEach(chip => {
+            const daysAttr = chip.dataset.days;
+            if (daysAttr !== undefined && daysAttr !== null) {
+                const days = parseInt(daysAttr, 10);
+                const d = new Date();
+                d.setDate(d.getDate() + days);
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, "0");
+                const day = String(d.getDate()).padStart(2, "0");
+                if (`${y}-${m}-${day}` === val) {
+                    chip.classList.add("active");
+                }
+            }
+        });
+    } else if (input.type === "time") {
+        const val = (input.value || "").trim();
+        if (!val) return;
+        chips.forEach(chip => {
+            if (chip.dataset.val === val) {
+                chip.classList.add("active");
+            }
+        });
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1738,7 +2047,11 @@ async function handleCreateBooking(e) {
         pendingBookingClientId = null;
         form.reset();
         clearAllFormErrors(form);
-        document.getElementById("booking-date").value = todayLocalIso();
+        const bookingDateEl = document.getElementById("booking-date");
+        if (bookingDateEl) {
+            bookingDateEl.value = todayLocalIso();
+            updateChipState(bookingDateEl);
+        }
         document.getElementById("booking-status").value = "confirmed";
         showToast(`Booking "${created.title}" created successfully!`);
         showSection("section-events");
@@ -1829,8 +2142,15 @@ async function handleCreateEvent(e) {
         pendingEventBookingId = null;
         form.reset();
         clearAllFormErrors(form);
-        document.getElementById("event-date").value = todayLocalIso();
-        if (timeInput) timeInput.value = "10:00";
+        const eventDateEl = document.getElementById("event-date");
+        if (eventDateEl) {
+            eventDateEl.value = todayLocalIso();
+            updateChipState(eventDateEl);
+        }
+        if (timeInput) {
+            timeInput.value = "10:00";
+            updateChipState(timeInput);
+        }
         document.getElementById("event-status").value = "scheduled";
         showToast(`Event "${created.name}" created successfully!`);
         await openEventDetail(created.id);
@@ -2196,6 +2516,51 @@ function wireCreateForms() {
     if (bookingDate && !bookingDate.value) bookingDate.value = todayLocalIso();
     if (eventDate && !eventDate.value) eventDate.value = todayLocalIso();
     if (eventTime && !eventTime.value) eventTime.value = "10:00";
+
+    // Preset chip listeners for date fields (booking-date, event-date)
+    document.querySelectorAll("button.btn-chip[data-set-date]").forEach(chip => {
+        chip.addEventListener("click", () => {
+            const targetId = chip.dataset.setDate;
+            const targetInput = document.getElementById(targetId);
+            if (!targetInput) return;
+            const days = parseInt(chip.dataset.days || "0", 10);
+            const d = new Date();
+            d.setDate(d.getDate() + days);
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, "0");
+            const day = String(d.getDate()).padStart(2, "0");
+            targetInput.value = `${y}-${m}-${day}`;
+            clearInputError(targetInput);
+            targetInput.dispatchEvent(new Event("input", { bubbles: true }));
+            targetInput.dispatchEvent(new Event("change", { bubbles: true }));
+            updateChipState(targetInput);
+        });
+    });
+
+    // Preset chip listeners for time field (event-time)
+    document.querySelectorAll("button.btn-chip[data-set-time]").forEach(chip => {
+        chip.addEventListener("click", () => {
+            const targetId = chip.dataset.setTime;
+            const targetInput = document.getElementById(targetId);
+            if (!targetInput) return;
+            const timeVal = chip.dataset.val;
+            if (timeVal) {
+                targetInput.value = timeVal;
+                clearInputError(targetInput);
+                targetInput.dispatchEvent(new Event("input", { bubbles: true }));
+                targetInput.dispatchEvent(new Event("change", { bubbles: true }));
+                updateChipState(targetInput);
+            }
+        });
+    });
+
+    // Sync chip highlights on manual input changes & initialize state
+    [bookingDate, eventDate, eventTime].forEach(input => {
+        if (!input) return;
+        input.addEventListener("input", () => updateChipState(input));
+        input.addEventListener("change", () => updateChipState(input));
+        updateChipState(input);
+    });
 
     const dashClient = document.getElementById("dash-goto-client");
     const dashBooking = document.getElementById("dash-goto-booking");

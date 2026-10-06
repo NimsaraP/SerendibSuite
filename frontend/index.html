@@ -169,15 +169,32 @@
                 </label>
                 <label>
                     Event date
-                    <input type="date" id="event-date" name="event_date" required />
+                    <div class="input-with-presets">
+                        <input type="date" id="event-date" name="event_date" required />
+                        <div class="quick-chips">
+                            <button type="button" class="btn-chip" data-set-date="event-date" data-days="0">Today</button>
+                            <button type="button" class="btn-chip" data-set-date="event-date" data-days="1">Tomorrow</button>
+                            <button type="button" class="btn-chip" data-set-date="event-date" data-days="7">+1 Wk</button>
+                            <button type="button" class="btn-chip" data-set-date="event-date" data-days="30">+1 Mo</button>
+                        </div>
+                    </div>
                 </label>
                 <label>
                     Event time
-                    <input type="time" id="event-time" name="event_time" value="10:00" />
+                    <div class="input-with-presets">
+                        <input type="time" id="event-time" name="event_time" value="10:00" required />
+                        <div class="quick-chips">
+                            <button type="button" class="btn-chip" data-set-time="event-time" data-val="07:30">07:30 AM</button>
+                            <button type="button" class="btn-chip" data-set-time="event-time" data-val="10:00">10:00 AM</button>
+                            <button type="button" class="btn-chip" data-set-time="event-time" data-val="14:00">02:00 PM</button>
+                            <button type="button" class="btn-chip" data-set-time="event-time" data-val="16:45">04:45 PM</button>
+                            <button type="button" class="btn-chip" data-set-time="event-time" data-val="18:30">06:30 PM</button>
+                        </div>
+                    </div>
                 </label>
                 <label>
                     Location
-                    <input type="text" id="event-location" name="location" placeholder="Optional" maxlength="255" />
+                    <input type="text" id="event-location" name="location" placeholder="e.g. Galle Face Hotel, Colombo" maxlength="255" />
                 </label>
                 <label>
                     Status
@@ -193,6 +210,31 @@
                 </div>
             </form>
             <div class="form-error" id="event-form-error" hidden></div>
+        </div>
+
+        <!-- Events Filter Toolbar -->
+        <div class="filter-toolbar">
+            <div class="filter-group">
+                <label for="filter-event-date" class="filter-label">📅 Date:</label>
+                <input type="date" id="filter-event-date" class="filter-input" title="Filter by specific event date" />
+            </div>
+            <div class="filter-group">
+                <label for="filter-event-time" class="filter-label">⏰ Time Slot:</label>
+                <select id="filter-event-time" class="filter-input">
+                    <option value="">All Times</option>
+                    <option value="morning">Morning (Before 12:00 PM)</option>
+                    <option value="afternoon">Afternoon (12:00 PM - 05:00 PM)</option>
+                    <option value="evening">Evening / Night (After 05:00 PM)</option>
+                </select>
+            </div>
+            <div class="filter-group filter-group-grow">
+                <label for="filter-event-search" class="filter-label">🔍 Search:</label>
+                <input type="text" id="filter-event-search" class="filter-input" placeholder="Search event name or location…" />
+            </div>
+            <div class="filter-actions">
+                <button type="button" id="btn-clear-event-filter" class="btn-filter-clear">✕ Clear</button>
+                <span id="event-filter-count" class="filter-count-badge"></span>
+            </div>
         </div>
 
         <div class="table-wrapper">
@@ -257,6 +299,22 @@
             <div class="form-error" id="client-form-error" hidden></div>
         </div>
 
+        <!-- Clients Filter Toolbar -->
+        <div class="filter-toolbar">
+            <div class="filter-group">
+                <label for="filter-client-date" class="filter-label">📅 Added Date:</label>
+                <input type="date" id="filter-client-date" class="filter-input" title="Filter clients added on a specific date" />
+            </div>
+            <div class="filter-group filter-group-grow">
+                <label for="filter-client-search" class="filter-label">🔍 Search:</label>
+                <input type="text" id="filter-client-search" class="filter-input" placeholder="Search by client name, email, or phone…" />
+            </div>
+            <div class="filter-actions">
+                <button type="button" id="btn-clear-client-filter" class="btn-filter-clear">✕ Clear</button>
+                <span id="client-filter-count" class="filter-count-badge"></span>
+            </div>
+        </div>
+
         <div class="table-wrapper">
             <div id="clients-list">
                 <div class="loading-msg">Loading…</div>
@@ -290,7 +348,15 @@
                 </label>
                 <label>
                     Booking date
-                    <input type="date" id="booking-date" name="booking_date" required />
+                    <div class="input-with-presets">
+                        <input type="date" id="booking-date" name="booking_date" required />
+                        <div class="quick-chips">
+                            <button type="button" class="btn-chip" data-set-date="booking-date" data-days="0">Today</button>
+                            <button type="button" class="btn-chip" data-set-date="booking-date" data-days="1">Tomorrow</button>
+                            <button type="button" class="btn-chip" data-set-date="booking-date" data-days="7">+1 Wk</button>
+                            <button type="button" class="btn-chip" data-set-date="booking-date" data-days="30">+1 Mo</button>
+                        </div>
+                    </div>
                 </label>
                 <label>
                     Status
@@ -310,6 +376,32 @@
                 </div>
             </form>
             <div class="form-error" id="booking-form-error" hidden></div>
+        </div>
+
+        <!-- Bookings Filter Toolbar -->
+        <div class="filter-toolbar">
+            <div class="filter-group">
+                <label for="filter-booking-date" class="filter-label">📅 Booking Date:</label>
+                <input type="date" id="filter-booking-date" class="filter-input" title="Filter by booking date" />
+            </div>
+            <div class="filter-group">
+                <label for="filter-booking-status" class="filter-label">🏷️ Status:</label>
+                <select id="filter-booking-status" class="filter-input">
+                    <option value="">All Statuses</option>
+                    <option value="confirmed">confirmed</option>
+                    <option value="enquiry">enquiry</option>
+                    <option value="completed">completed</option>
+                    <option value="cancelled">cancelled</option>
+                </select>
+            </div>
+            <div class="filter-group filter-group-grow">
+                <label for="filter-booking-search" class="filter-label">🔍 Search:</label>
+                <input type="text" id="filter-booking-search" class="filter-input" placeholder="Search booking title or notes…" />
+            </div>
+            <div class="filter-actions">
+                <button type="button" id="btn-clear-booking-filter" class="btn-filter-clear">✕ Clear</button>
+                <span id="booking-filter-count" class="filter-count-badge"></span>
+            </div>
         </div>
 
         <div class="table-wrapper">
