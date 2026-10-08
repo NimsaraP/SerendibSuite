@@ -246,29 +246,59 @@ def _analyse_with_yunet(image_path: Path) -> EyeResult:
     has_closed = False
     has_partial = False
 
-    def _is_eye_open(ex, ey, eye_radius):
-        patch = gray[max(0, ey - eye_radius):min(h, ey + eye_radius), max(0, ex - eye_radius):min(w, ex + eye_radius)]
-        if patch.size == 0:
-            return True
-        contrast = float(np.max(patch) - np.min(patch))
-        std = float(np.std(patch))
-        return contrast >= 40.0 and std >= 16.0
-
     for face in faces:
-        fw, fh = face[2], face[3]
-        eye_radius = max(4, int(fw * 0.08))
+        fx, fy, fw, fh = int(face[0]), int(face[1]), int(face[2]), int(face[3])
+        # Sample cheek skin tone for comparison with eye center
+        cheek = gray[max(0, fy + int(fh * 0.55)):min(h, fy + int(fh * 0.75)),
+                     max(0, fx + int(fw * 0.25)):min(w, fx + int(fw * 0.75))]
+        skin_med = float(np.median(cheek)) if cheek.size > 0 else 128.0
+
+        eye_rw = max(8, int(fw * 0.10))
+        eye_rh = max(6, int(fh * 0.08))
+
+        def _is_eye_open(ex, ey):
+            patch = gray[max(0, ey - eye_rh):min(h, ey + eye_rh),
+                         max(0, ex - eye_rw):min(w, ex + eye_rw)]
+            if patch.size == 0:
+                return True
+            ch, cw = patch.shape
+            center = patch[int(ch * 0.25):int(ch * 0.75), int(cw * 0.25):int(cw * 0.75)]
+            if center.size == 0:
+                return True
+
+            c_mean = float(np.mean(center))
+            c_min = float(np.min(center))
+            sobelx = cv2.Sobel(patch, cv2.CV_64F, 1, 0, ksize=3)
+            mag_x = float(np.mean(np.abs(sobelx)))
+            center_skin_ratio = c_mean / (skin_med + 1e-5)
+
+            # An eye is closed/squinting shut if:
+            # 1. Center intensity is as light as or lighter than face skin and lacks horizontal iris gradient
+            # 2. Or center skin ratio >= 1.03 (smooth eyelid skin)
+            # 3. Or horizontal gradient is very low and minimum pixel is not dark (no dark pupil)
+            # 4. Or minimum pixel in center is not dark (> 35.0)
+            is_closed = (
+                (center_skin_ratio >= 0.98 and mag_x < 26.0) or
+                (center_skin_ratio >= 1.03) or
+                (mag_x < 18.0 and c_min > 25.0) or
+                (c_min > 35.0 and mag_x < 28.0)
+            )
+            return not is_closed
 
         rex, rey = int(face[4]), int(face[5])
         lex, ley = int(face[6]), int(face[7])
 
-        r_open = _is_eye_open(rex, rey, eye_radius)
-        l_open = _is_eye_open(lex, ley, eye_radius)
+        r_open = _is_eye_open(rex, rey)
+        l_open = _is_eye_open(lex, ley)
 
         if not r_open and not l_open:
             has_closed = True
         elif not r_open or not l_open:
             has_partial = True
 
+    # In couple & group photos, ALL detected faces must have both eyes open.
+    # If ANY face has closed eyes (blinked), status is "closed".
+    # If ANY face has one eye closed (partial) and none fully closed, status is "partial".
     if has_closed:
         eyes_status = "closed"
     elif has_partial:
