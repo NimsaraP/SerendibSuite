@@ -142,7 +142,6 @@ function updateBackButtons() {
     if (bcCurrent) {
         bcCurrent.textContent = currentNavigationState.title || "Dashboard";
     }
-    }
 }
 
 function navigateBack() {
