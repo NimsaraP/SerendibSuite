@@ -48,6 +48,16 @@ def create_event(payload: EventCreate, db: Session = Depends(get_db)):
             detail=f"Booking with id={payload.booking_id} does not exist.",
         )
 
+    # Guard: The event date cannot be earlier than the booking date.
+    if payload.event_date < booking.booking_date:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"Event date ({payload.event_date}) cannot be earlier than booking date "
+                f"({booking.booking_date}) for booking '{booking.title}'."
+            ),
+        )
+
     name_clean = payload.name.strip()
 
     # 1. Guard: Check for duplicate event name under this booking

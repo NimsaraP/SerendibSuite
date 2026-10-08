@@ -157,7 +157,7 @@ def _analyse_with_mediapipe(image_path: Path) -> EyeResult:
     base_opts = mp_python.BaseOptions(model_asset_path=str(model_path))
     opts = mp_vision.FaceLandmarkerOptions(
         base_options=base_opts,
-        num_faces=5,
+        num_faces=10,
         min_face_detection_confidence=0.5,
         min_face_presence_confidence=0.5,
         min_tracking_confidence=0.5,
@@ -187,14 +187,24 @@ def _analyse_with_mediapipe(image_path: Path) -> EyeResult:
             method="mediapipe",
         )
 
-    # Analyse eye status for the first (most prominent) face.
-    landmarks = result.face_landmarks[0]
-    left_ear  = _ear(landmarks, _LEFT_EYE_INDICES,  w, h)
-    right_ear = _ear(landmarks, _RIGHT_EYE_INDICES, w, h)
+    # In couple & group wedding photos, ALL detected faces must have both eyes open.
+    # If ANY face has closed eyes (blinked), status is "closed".
+    # If ANY face has one eye closed (partial) and none fully closed, status is "partial".
+    has_closed = False
+    has_partial = False
 
-    if left_ear < EAR_OPEN_THRESHOLD and right_ear < EAR_OPEN_THRESHOLD:
+    for landmarks in result.face_landmarks:
+        left_ear  = _ear(landmarks, _LEFT_EYE_INDICES,  w, h)
+        right_ear = _ear(landmarks, _RIGHT_EYE_INDICES, w, h)
+
+        if left_ear < EAR_OPEN_THRESHOLD and right_ear < EAR_OPEN_THRESHOLD:
+            has_closed = True
+        elif left_ear < EAR_OPEN_THRESHOLD or right_ear < EAR_OPEN_THRESHOLD:
+            has_partial = True
+
+    if has_closed:
         eyes_status = "closed"
-    elif left_ear < EAR_OPEN_THRESHOLD or right_ear < EAR_OPEN_THRESHOLD:
+    elif has_partial:
         eyes_status = "partial"
     else:
         eyes_status = "open"
@@ -232,15 +242,11 @@ def _analyse_with_yunet(image_path: Path) -> EyeResult:
             method="yunet",
         )
 
-    primary = faces[0]
     gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
-    fw, fh = primary[2], primary[3]
-    eye_radius = max(4, int(fw * 0.08))
+    has_closed = False
+    has_partial = False
 
-    rex, rey = int(primary[4]), int(primary[5])
-    lex, ley = int(primary[6]), int(primary[7])
-
-    def is_eye_open(ex, ey):
+    def _is_eye_open(ex, ey, eye_radius):
         patch = gray[max(0, ey - eye_radius):min(h, ey + eye_radius), max(0, ex - eye_radius):min(w, ex + eye_radius)]
         if patch.size == 0:
             return True
@@ -248,15 +254,27 @@ def _analyse_with_yunet(image_path: Path) -> EyeResult:
         std = float(np.std(patch))
         return contrast >= 40.0 and std >= 16.0
 
-    r_open = is_eye_open(rex, rey)
-    l_open = is_eye_open(lex, ley)
+    for face in faces:
+        fw, fh = face[2], face[3]
+        eye_radius = max(4, int(fw * 0.08))
 
-    if r_open and l_open:
-        eyes_status = "open"
-    elif r_open or l_open:
+        rex, rey = int(face[4]), int(face[5])
+        lex, ley = int(face[6]), int(face[7])
+
+        r_open = _is_eye_open(rex, rey, eye_radius)
+        l_open = _is_eye_open(lex, ley, eye_radius)
+
+        if not r_open and not l_open:
+            has_closed = True
+        elif not r_open or not l_open:
+            has_partial = True
+
+    if has_closed:
+        eyes_status = "closed"
+    elif has_partial:
         eyes_status = "partial"
     else:
-        eyes_status = "closed"
+        eyes_status = "open"
 
     return EyeResult(
         face_detected=True,
@@ -299,21 +317,27 @@ def _analyse_with_haar(image_path: Path) -> EyeResult:
             method="haar",
         )
 
-    # Check eyes with eye cascade
+    # Check eyes with eye cascade across all detected faces
     eyes_status = "open"
     eye_cascade_path = _get_cascade_path("haarcascade_eye.xml")
     eye_cascade = cv2.CascadeClassifier(eye_cascade_path)
     if not eye_cascade.empty():
-        primary = max(faces, key=lambda f: f[2] * f[3])
-        fx, fy, fw, fh = primary
-        roi_gray = gray[fy : fy + int(fh * 0.6), fx : fx + fw]
-        eyes = eye_cascade.detectMultiScale(roi_gray, scaleFactor=1.1, minNeighbors=3, minSize=(15, 15))
-        if len(eyes) >= 2:
-            eyes_status = "open"
-        elif len(eyes) == 1:
+        has_closed = False
+        has_partial = False
+        for (fx, fy, fw, fh) in faces:
+            roi_gray = gray[fy : fy + int(fh * 0.6), fx : fx + fw]
+            eyes = eye_cascade.detectMultiScale(roi_gray, scaleFactor=1.1, minNeighbors=3, minSize=(15, 15))
+            if len(eyes) == 0:
+                has_closed = True
+            elif len(eyes) == 1:
+                has_partial = True
+
+        if has_closed:
+            eyes_status = "closed"
+        elif has_partial:
             eyes_status = "partial"
         else:
-            eyes_status = "closed"
+            eyes_status = "open"
 
     return EyeResult(
         face_detected=True,

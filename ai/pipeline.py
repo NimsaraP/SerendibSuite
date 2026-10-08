@@ -81,11 +81,11 @@ def _make_recommendation(
 
     if face_detected:
         if eyes_status == "closed":
-            return ("review", "Face detected but eyes appear closed. Recommend review.")
+            return ("review", "Face(s) detected with closed or blinked eyes. Recommend review.")
         if eyes_status == "partial":
-            return ("review", "Face detected but one eye may be closed. Recommend review.")
+            return ("review", "Face(s) detected with partially open eyes. Recommend review.")
         if eyes_status == "open":
-            return ("keep", "Sharp image with face and open eyes detected. Recommended to keep.")
+            return ("keep", "Sharp image with face(s) and all eyes open. Recommended to keep.")
         # eyes_status unknown / unexpected
         return ("review", "Face detected but eye status unclear. Recommend review.")
 

@@ -2615,6 +2615,11 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     animation: realTimeRowGlow 4s ease-out forwards !important;
 }
 
+.row-recently-uploaded {
+    animation: realTimeRowGlow 6s ease-out forwards !important;
+    background-color: rgba(99, 102, 241, 0.08) !important;
+}
+
 .badge-new {
     display: inline-block;
     background: #10b981;
@@ -2628,6 +2633,10 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     letter-spacing: 0.5px;
     animation: pulse 1.5s infinite;
     vertical-align: middle;
+}
+
+.badge-uploaded {
+    background: #6366f1 !important;
 }
 
 /* Client badges in tables & lists */
@@ -2663,4 +2672,21 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     color: #93c5fd;
     margin-top: 3px;
     font-weight: 500;
+}
+
+.btn-secondary-action {
+    background: var(--color-surface-2, #1e293b);
+    color: var(--color-text, #f8fafc);
+    border: 1px solid var(--color-border, #334155);
+    padding: 7px 14px;
+    border-radius: var(--radius-sm, 6px);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.btn-secondary-action:hover {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: #60a5fa;
+    color: #60a5fa;
 }

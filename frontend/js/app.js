@@ -53,6 +53,8 @@ const sections = document.querySelectorAll(".section");
 
 function updateBackButtons() {
     const topBackBtn = document.getElementById("btn-top-back");
+    const topPrevBadge = document.getElementById("btn-top-prev-badge");
+    const topDashBtn = document.getElementById("btn-top-dashboard");
     const mobileBackBtn = document.getElementById("btn-mobile-back");
     const backNavDest = document.getElementById("back-nav-dest");
     const eventDetailBackBtn = document.getElementById("btn-back-to-events");
@@ -68,8 +70,14 @@ function updateBackButtons() {
             topBackBtn.style.display = "inline-flex";
             topBackBtn.removeAttribute("disabled");
             topBackBtn.classList.remove("disabled");
-            if (backNavDest) backNavDest.textContent = destLabel;
             topBackBtn.title = `Back to ${destLabel}`;
+        }
+        if (topPrevBadge) {
+            topPrevBadge.style.display = "inline-flex";
+            topPrevBadge.removeAttribute("disabled");
+            topPrevBadge.classList.remove("disabled");
+            if (backNavDest) backNavDest.textContent = destLabel;
+            topPrevBadge.title = `Click to go back to ${destLabel}`;
         }
         if (mobileBackBtn) {
             mobileBackBtn.style.display = "inline-flex";
@@ -85,8 +93,12 @@ function updateBackButtons() {
                 topBackBtn.style.display = "inline-flex";
                 topBackBtn.setAttribute("disabled", "true");
                 topBackBtn.classList.add("disabled");
-                if (backNavDest) backNavDest.textContent = "";
-                topBackBtn.title = "No previous page";
+                topBackBtn.title = "No previous page (You are on Dashboard)";
+            }
+            if (topPrevBadge) {
+                topPrevBadge.style.display = "none";
+                topPrevBadge.setAttribute("disabled", "true");
+                topPrevBadge.classList.add("disabled");
             }
             if (mobileBackBtn) {
                 mobileBackBtn.style.display = "none";
@@ -96,8 +108,14 @@ function updateBackButtons() {
                 topBackBtn.style.display = "inline-flex";
                 topBackBtn.removeAttribute("disabled");
                 topBackBtn.classList.remove("disabled");
-                if (backNavDest) backNavDest.textContent = "Dashboard";
                 topBackBtn.title = "Back to Dashboard";
+            }
+            if (topPrevBadge) {
+                topPrevBadge.style.display = "inline-flex";
+                topPrevBadge.removeAttribute("disabled");
+                topPrevBadge.classList.remove("disabled");
+                if (backNavDest) backNavDest.textContent = "Dashboard";
+                topPrevBadge.title = "Click to return to Dashboard";
             }
             if (mobileBackBtn) {
                 mobileBackBtn.style.display = "inline-flex";
@@ -110,9 +128,20 @@ function updateBackButtons() {
         }
     }
 
+    if (topDashBtn) {
+        if (isDashboard) {
+            topDashBtn.style.opacity = "0.75";
+            topDashBtn.title = "Currently on Dashboard";
+        } else {
+            topDashBtn.style.opacity = "1";
+            topDashBtn.title = "Return to Dashboard";
+        }
+    }
+
     const bcCurrent = document.getElementById("bc-current-title");
     if (bcCurrent) {
         bcCurrent.textContent = currentNavigationState.title || "Dashboard";
+    }
     }
 }
 
@@ -343,6 +372,7 @@ let _allEventsData = [];
 let _newlyAddedClientId = null;
 let _newlyAddedBookingId = null;
 let _newlyAddedEventId = null;
+let _lastUploadedEventId = null;
 
 function updateDashboardStatsInMemory() {
     const statClients = document.getElementById("stat-clients");
@@ -603,10 +633,12 @@ function renderEventsTable(eventsToRender) {
             <tbody>
                 ${eventsToRender.map(ev => {
                     const isNew = String(ev.id) === String(_newlyAddedEventId);
+                    const isUploaded = String(ev.id) === String(_lastUploadedEventId);
                     const clientName = ev.client_name || getBookingClientName(ev.booking_id) || "—";
                     const bookingTitle = ev.booking_title || getBookingTitle(ev.booking_id) || "";
+                    const rowClass = isNew ? 'row-newly-added' : (isUploaded ? 'row-recently-uploaded' : '');
                     return `
-                    <tr class="${isNew ? 'row-newly-added' : ''}" id="event-row-${ev.id}">
+                    <tr class="${rowClass}" id="event-row-${ev.id}">
                         <td>${ev.id}</td>
                         <td>
                             <div class="table-client-wrap">
@@ -619,6 +651,7 @@ function renderEventsTable(eventsToRender) {
                         <td>
                             <strong>${escapeHtml(ev.name)}</strong>
                             ${isNew ? '<span class="badge-new">JUST ADDED</span>' : ''}
+                            ${isUploaded ? '<span class="badge-new badge-uploaded">📸 PHOTOS UPLOADED</span>' : ''}
                         </td>
                         <td>
                             <div><strong>${formatDate(ev.event_date)}</strong></div>
@@ -865,8 +898,8 @@ async function openEventDetail(eventId, pushHistory = true) {
 
                     <!-- ── Upload bar ── -->
                     <div class="upload-bar" id="upload-dropzone">
-                        <label class="btn-upload-label" for="photo-file-input">
-                            &#128194; Choose Photos
+                        <label class="btn-upload-label" for="photo-file-input" style="cursor:pointer;">
+                            &#128194; Choose &amp; Upload Photos
                         </label>
                         <input
                             type="file"
@@ -875,10 +908,7 @@ async function openEventDetail(eventId, pushHistory = true) {
                             multiple
                             style="display:none"
                         />
-                        <button class="btn-upload" id="btn-upload-photos">
-                            &#11014; Upload Selected
-                        </button>
-                        <span class="upload-file-label" id="upload-file-label">Select photo or drag &amp; drop here (JPG, PNG up to 50MB)</span>
+                        <span class="upload-file-label" id="upload-file-label">Click to choose photos or drag &amp; drop here (JPG, PNG up to 50MB)</span>
                     </div>
 
                     <!-- ── Upload progress rows ── -->
@@ -1065,14 +1095,24 @@ function renderBatchActionBar(photos, eventId) {
     }
 
     if (remaining === 0) {
-        // All done
+        // All analysed — provide 1-click Re-analyse All Photos button
         bar.innerHTML = `
-            <div class="batch-action-done">
-                <span class="batch-done-icon">&#10003;</span>
-                <span>All ${total} photos analysed</span>
-                <span class="batch-done-hint">Use individual Re-analyse buttons to re-run specific photos.</span>
+            <div class="batch-action-done" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span class="batch-done-icon">&#10003;</span>
+                    <span><strong>All ${total} photos analysed</strong></span>
+                </div>
+                <button class="btn-analyse-all btn-reanalyse-all" id="btn-reanalyse-all" data-event-id="${eventId}">
+                    &#8635; Re-analyse All (${total}) Photos
+                </button>
             </div>
         `;
+        const reBtn = document.getElementById("btn-reanalyse-all");
+        if (reBtn) {
+            reBtn.addEventListener("click", () => {
+                analyseAll(eventId, photos.map(p => p.id));
+            });
+        }
         return;
     }
 
@@ -1085,17 +1125,31 @@ function renderBatchActionBar(photos, eventId) {
         : `${total} photo${total > 1 ? "s" : ""} ready for AI analysis`;
 
     bar.innerHTML = `
-        <div class="batch-action-ready">
+        <div class="batch-action-ready" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
             <div class="batch-action-status">${statusText}</div>
-            <button class="btn-analyse-all" id="btn-analyse-all" data-event-id="${eventId}">
-                ${btnLabel}
-            </button>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <button class="btn-analyse-all" id="btn-analyse-all" data-event-id="${eventId}">
+                    ${btnLabel}
+                </button>
+                ${isPartial ? `
+                    <button class="btn-secondary-action" id="btn-reanalyse-everything" data-event-id="${eventId}" title="Re-run AI on every photo">
+                        &#8635; Re-analyse All (${total})
+                    </button>
+                ` : ''}
+            </div>
         </div>
     `;
 
     document.getElementById("btn-analyse-all").addEventListener("click", () => {
         analyseAll(eventId, unanalysed.map(p => p.id));
     });
+
+    const reAllBtn = document.getElementById("btn-reanalyse-everything");
+    if (reAllBtn) {
+        reAllBtn.addEventListener("click", () => {
+            analyseAll(eventId, photos.map(p => p.id));
+        });
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1313,11 +1367,16 @@ function renderPhotoCard(photo) {
     if (a?.photographer_decision === "keep")   cardClass += " card-selected";
     if (a?.photographer_decision === "reject") cardClass += " card-rejected";
 
+    const decisionHtml = renderDecisionSection(photo.id, a?.photographer_decision);
+
     const aiSection = a
         ? renderAnalysisZone(photo.id, a)
         : `<div class="photo-ai-zone" id="ai-zone-${photo.id}">
-               <span class="ai-status-chip chip-pending">Not analysed</span>
-               <button class="btn-analyse" data-photo-id="${photo.id}">&#129302; Analyse</button>
+               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                   <span class="ai-status-chip chip-pending">Not analysed</span>
+                   <button class="btn-analyse" data-photo-id="${photo.id}">&#129302; Analyse</button>
+               </div>
+               ${decisionHtml}
            </div>`;
 
     return `
@@ -1731,6 +1790,7 @@ async function handleUpload(eventId, filesToUpload = null) {
     if (labelEl) labelEl.textContent = "Select photo or drag & drop here (JPG, PNG up to 50MB)";
 
     if (successCount > 0) {
+        _lastUploadedEventId = eventId;
         await loadPhotoGallery(eventId);
         setTimeout(() => {
             if (progressArea) progressArea.innerHTML = "";
@@ -2734,6 +2794,19 @@ async function handleCreateEvent(e) {
         if (!firstErrorEl) firstErrorEl = dateInput;
     }
 
+    // Validate that Event Date is NOT earlier than the selected Booking's Date
+    const chosenBooking = _allBookingsData.find(b => String(b.id) === String(bookingId));
+    if (chosenBooking && chosenBooking.booking_date && dateVal) {
+        const bDateStr = String(chosenBooking.booking_date).slice(0, 10);
+        if (dateVal < bDateStr) {
+            setInputError(dateInput, `Event date (${formatDate(dateVal)}) cannot be earlier than booking date (${formatDate(bDateStr)}).`);
+            showFormWarning("event-form-warning", `Cannot create event: The event date (${formatDate(dateVal)}) cannot be earlier than the booking date (${formatDate(bDateStr)}) for booking "${chosenBooking.title}".`);
+            showToast(`Error: Event date cannot be earlier than booking date (${formatDate(bDateStr)})!`, "error");
+            hasError = true;
+            if (!firstErrorEl) firstErrorEl = dateInput;
+        }
+    }
+
     // Validate Location
     if (locationVal && locationVal.length > 255) {
         setInputError(locationInput, "Location cannot exceed 255 characters.");
@@ -2922,6 +2995,39 @@ async function openBurstGroups(eventId) {
             `).join("")}
         `;
 
+        // Helper to update burst card UI in-place without jarring reload
+        const updateBurstCardUi = (photoId, decision) => {
+            const card = document.getElementById(`burst-card-${photoId}`);
+            if (!card) return;
+            const thumbWrap = card.querySelector(".photo-thumb-wrap");
+            if (thumbWrap) {
+                thumbWrap.querySelectorAll(".card-decision-banner").forEach(el => el.remove());
+                if (decision === "keep") {
+                    const b = document.createElement("div");
+                    b.className = "card-decision-banner banner-keep";
+                    b.innerHTML = "&#10003; Selected";
+                    thumbWrap.appendChild(b);
+                } else if (decision === "reject") {
+                    const b = document.createElement("div");
+                    b.className = "card-decision-banner banner-reject";
+                    b.innerHTML = "&#10007; Rejected";
+                    thumbWrap.appendChild(b);
+                }
+            }
+            card.querySelectorAll(".btn-decision").forEach(b => {
+                b.disabled = false;
+                if (b.dataset.decision === decision) {
+                    b.style.opacity = "1";
+                    b.style.fontWeight = "700";
+                    b.style.boxShadow = "0 0 0 2px #ffffff";
+                } else {
+                    b.style.opacity = "0.6";
+                    b.style.fontWeight = "normal";
+                    b.style.boxShadow = "none";
+                }
+            });
+        };
+
         // Wire 1-click batch pick & reject
         container.querySelectorAll(".btn-keep-best").forEach(btn => {
             btn.addEventListener("click", async () => {
@@ -2931,17 +3037,35 @@ async function openBurstGroups(eventId) {
                 if (!group) return;
 
                 btn.disabled = true;
-                btn.textContent = "Applying decisions…";
+                const origText = btn.innerHTML;
+                btn.innerHTML = `<span class="spinner-inline"></span> Applying decisions…`;
 
+                // Update UI in-place immediately
                 for (const p of group.photos) {
                     const dec = (p.id === pickId) ? "keep" : "reject";
-                    try {
-                        await setDecision(p.id, dec);
-                    } catch (_) {}
+                    updateBurstCardUi(p.id, dec);
                 }
 
-                btn.textContent = "✓ Applied!";
-                setTimeout(() => openBurstGroups(eventId), 600);
+                try {
+                    await Promise.all(group.photos.map(p => {
+                        const dec = (p.id === pickId) ? "keep" : "reject";
+                        return setDecision(p.id, dec).catch(err => console.warn(err));
+                    }));
+                    btn.innerHTML = "&#10003; Top Pick Kept, Others Rejected!";
+                    btn.style.background = "#10b981";
+                    btn.style.borderColor = "#10b981";
+                    showToast("AI Top Pick selected and duplicate frames marked as rejected!");
+                    setTimeout(() => {
+                        btn.disabled = false;
+                        btn.innerHTML = origText;
+                        btn.style.background = "";
+                        btn.style.borderColor = "";
+                    }, 2500);
+                } catch (e) {
+                    btn.disabled = false;
+                    btn.innerHTML = origText;
+                    showToast("Error saving burst decisions: " + e.message, "error");
+                }
             });
         });
 
@@ -2953,9 +3077,11 @@ async function openBurstGroups(eventId) {
                 btn.disabled = true;
                 try {
                     await setDecision(pid, dec);
-                    openBurstGroups(eventId);
+                    updateBurstCardUi(pid, dec);
+                    showToast(`Photo #${pid} marked as ${dec === "keep" ? "Keep" : "Reject"}`);
                 } catch (e) {
-                    alert("Error setting decision: " + e.message);
+                    btn.disabled = false;
+                    showToast("Error setting decision: " + e.message, "error");
                 }
             });
         });

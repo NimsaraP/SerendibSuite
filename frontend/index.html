@@ -10,7 +10,7 @@
           content="SerendibSuite: a professional dashboard for event photographers to manage clients, bookings, events and AI-assisted photo curation." />
 
     <!-- Stylesheet with cache-busting -->
-    <link rel="stylesheet" href="css/style.css?v=20261008_6" />
+    <link rel="stylesheet" href="css/style.css?v=20261008_10" />
 
     <style>
         /* Essential layout for Top Navigation Bar */
@@ -81,6 +81,51 @@
         }
         .btn-top-back:hover:not(:disabled) .back-dest {
             color: rgba(255, 255, 255, 0.9);
+        }
+        .btn-top-prev-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(99, 102, 241, 0.14);
+            color: #c7d2fe;
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            padding: 7px 14px;
+            border-radius: 8px;
+            font-size: 12.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-top-prev-badge:hover:not(:disabled) {
+            background: rgba(99, 102, 241, 0.28);
+            border-color: #818cf8;
+            color: #ffffff;
+            transform: translateY(-1px);
+        }
+        .btn-top-prev-badge:disabled, .btn-top-prev-badge.disabled {
+            display: none !important;
+        }
+        .btn-top-dashboard {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #1a1d27;
+            color: #e2e8f0;
+            border: 1.5px solid #3b82f6;
+            padding: 7px 15px;
+            border-radius: 8px;
+            font-size: 12.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+        }
+        .btn-top-dashboard:hover {
+            background: #3b82f6;
+            color: #ffffff;
+            border-color: #3b82f6;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
         }
         .breadcrumbs {
             display: flex;
@@ -286,13 +331,20 @@
      MAIN CONTENT
      ========================================================================= -->
 <main class="main-content">
-    <!-- Top Navigation & Global Back Bar -->
+    <!-- Top Navigation & Global Back Bar (3-in-1 Navigation Hub) -->
     <div class="top-nav-bar" id="top-nav-bar">
         <div class="top-nav-left">
             <button type="button" class="btn-top-back disabled" id="btn-top-back" title="Go back to previous interface" disabled onclick="window.navigateBack()">
                 <span class="back-arrow">←</span>
                 <span class="back-label">Back</span>
-                <span class="back-dest" id="back-nav-dest"></span>
+            </button>
+            <button type="button" class="btn-top-prev-badge disabled" id="btn-top-prev-badge" title="Go back to previous screen" onclick="window.navigateBack()">
+                <span class="prev-badge-icon">📍</span>
+                <span class="prev-badge-label">Back to: <strong id="back-nav-dest">Dashboard</strong></span>
+            </button>
+            <button type="button" class="btn-top-dashboard" id="btn-top-dashboard" title="Go directly to Dashboard" onclick="showSection('section-dashboard')">
+                <span class="dash-icon">🏠</span>
+                <span class="dash-label">Dashboard</span>
             </button>
             <div class="breadcrumbs" id="app-breadcrumbs">
                 <span class="bc-home">Workspace</span>
@@ -875,7 +927,7 @@
 </script>
 
 <!-- Main application logic (ES module) with cache-busting -->
-<script type="module" src="js/app.js?v=20261008_8"></script>
+<script type="module" src="js/app.js?v=20261008_10"></script>
 
 </body>
 </html>

@@ -610,17 +610,21 @@ def set_photographer_decision(
             detail=f"Photo with id={photo_id} does not exist.",
         )
 
-    # 2. Analysis must exist — cannot decide on an unanalysed photo.
+    # 2. Get or create analysis record — photographer always has authority to decide.
     analysis = (
         db.query(PhotoAnalysis)
         .filter(PhotoAnalysis.photo_id == photo_id)
         .first()
     )
     if analysis is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Photo must be analysed before setting a photographer decision.",
+        analysis = PhotoAnalysis(
+            photo_id=photo_id,
+            photographer_decision=body.decision,
+            ai_recommendation="undecided",
         )
+        db.add(analysis)
+        db.commit()
+        db.refresh(analysis)
 
     # 3. Apply the decision (Pydantic already validated it is keep|reject).
     is_override = (
