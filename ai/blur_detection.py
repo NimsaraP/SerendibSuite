@@ -61,6 +61,14 @@ def detect_blur(image_path: Path, threshold: float = DEFAULT_BLUR_THRESHOLD) -> 
     if not image_path.exists():
         raise FileNotFoundError(f"Image file not found: {image_path}")
 
+    # SVG vector files are mathematically sharp / lossless.
+    if image_path.suffix.lower() == ".svg":
+        return BlurResult(
+            blur_score=999.0,
+            is_blurry=False,
+            threshold=threshold,
+        )
+
     # imread returns None if the file cannot be decoded.
     image = cv2.imread(str(image_path))
     if image is None:

@@ -929,11 +929,11 @@ async function openEventDetail(eventId, pushHistory = true) {
                         <input
                             type="file"
                             id="photo-file-input"
-                            accept=".jpg,.jpeg,.png"
+                            accept=".jpg,.jpeg,.png,.webp,.svg,image/jpeg,image/png,image/webp,image/svg+xml"
                             multiple
                             style="display:none"
                         />
-                        <span class="upload-file-label" id="upload-file-label">Click to choose photos or drag &amp; drop here (JPG, PNG up to 50MB)</span>
+                        <span class="upload-file-label" id="upload-file-label">Click to choose photos or drag &amp; drop here (JPG, PNG, WebP, SVG up to 50MB)</span>
                     </div>
 
                     <!-- ── Upload progress rows ── -->
@@ -1794,7 +1794,7 @@ async function handleUpload(eventId, filesToUpload = null) {
     }
 
     const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-    const ALLOWED_EXTS = ["jpg", "jpeg", "png"];
+    const ALLOWED_EXTS = ["jpg", "jpeg", "png", "webp", "svg"];
 
     // Render upload rows with local thumbnail preview
     progressArea.innerHTML = files.map((f, i) => {
@@ -1824,7 +1824,7 @@ async function handleUpload(eventId, filesToUpload = null) {
         const ext = file.name.split(".").pop().toLowerCase();
         if (!ALLOWED_EXTS.includes(ext)) {
             if (statusEl) {
-                statusEl.textContent = "Unsupported format (only JPG/PNG allowed)";
+                statusEl.textContent = "Unsupported format (JPG, PNG, WebP, SVG allowed)";
                 statusEl.className   = "upload-row-status status-error";
             }
             failCount++;
@@ -1880,7 +1880,7 @@ async function handleUpload(eventId, filesToUpload = null) {
 
     if (fileInput) fileInput.value = "";
     const labelEl = document.getElementById("upload-file-label");
-    if (labelEl) labelEl.textContent = "Select photo or drag & drop here (JPG, PNG up to 50MB)";
+    if (labelEl) labelEl.textContent = "Select photo or drag & drop here (JPG, PNG, WebP, SVG up to 50MB)";
 
     if (successCount > 0) {
         _lastUploadedEventId = eventId;

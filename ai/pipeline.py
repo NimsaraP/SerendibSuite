@@ -119,6 +119,25 @@ def run_pipeline(
         ValueError        : If the image cannot be decoded.
     """
     # ------------------------------------------------------------------
+    # Vector graphics handling (SVG)
+    # SVG files are scalable XML vectors: naturally sharp/lossless with no
+    # raster camera blur or face pixels.
+    # ------------------------------------------------------------------
+    if image_path.suffix.lower() == ".svg":
+        import hashlib
+        content = image_path.read_bytes()
+        svg_hash = hashlib.sha256(content).hexdigest()[:16]
+        return AnalysisResult(
+            blur_score=999.0,
+            is_blurry=False,
+            face_detected=False,
+            eyes_status="no_face",
+            similarity_group=svg_hash,
+            ai_recommendation="keep",
+            reason="Vector SVG graphic (lossless format, no blur). Recommended to keep.",
+        )
+
+    # ------------------------------------------------------------------
     # Step 1 — Blur detection
     # ------------------------------------------------------------------
     blur_result = detect_blur(image_path, threshold=blur_threshold)

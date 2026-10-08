@@ -58,6 +58,11 @@ def compute_phash(image_path: Path) -> SimilarityResult:
     if not image_path.exists():
         raise FileNotFoundError(f"Image not found: {image_path}")
 
+    if image_path.suffix.lower() == ".svg":
+        import hashlib
+        content = image_path.read_bytes()
+        return SimilarityResult(phash=hashlib.sha256(content).hexdigest()[:16])
+
     try:
         img = Image.open(image_path)
         img.load()  # Force decode — catches corrupt files early.

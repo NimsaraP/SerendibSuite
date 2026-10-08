@@ -120,6 +120,14 @@ def analyse_eyes(image_path: Path) -> EyeResult:
       3. OpenCV Haar cascade fallback
       4. Safe default (no_face)
     """
+    if image_path.suffix.lower() == ".svg":
+        return EyeResult(
+            face_detected=False,
+            eyes_status="no_face",
+            num_faces=0,
+            method="svg",
+        )
+
     try:
         return _analyse_with_mediapipe(image_path)
     except Exception:

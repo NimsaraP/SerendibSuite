@@ -26,10 +26,16 @@ from backend.app.schemas.photo import (
 
 # Allowed MIME types.  We check the Content-Type header reported by the
 # browser AND the file extension to add two layers of validation.
-ALLOWED_MIME_TYPES = {"image/jpeg", "image/png"}
-ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png"}
+ALLOWED_MIME_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/svg+xml",
+    "image/svg",
+}
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".svg"}
 
-# Maximum upload size: 50 MB (supports full-res camera JPEGs/PNGs).
+# Maximum upload size: 50 MB (supports full-res camera JPEGs/PNGs/WebP/SVG).
 # Files larger than this are rejected before being written to disk.
 MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024  # 50 MB
 
@@ -65,8 +71,8 @@ async def upload_photo(
 
     Validation steps:
       1. Verify the event exists (404 if not).
-      2. Check MIME type is JPEG or PNG (415 if not).
-      3. Check file extension matches the MIME type (415 if not).
+      2. Check MIME type is JPEG, PNG, WebP, or SVG (415 if not).
+      3. Check file extension matches the allowed extensions (415 if not).
       4. Read the file into memory and check the size (413 if too large).
       5. Generate a UUID-based filename — never trust the original name.
       6. Write to storage/events/{event_id}/
@@ -92,7 +98,7 @@ async def upload_photo(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
             detail=(
                 f"Unsupported file type '{file.content_type}'. "
-                f"Only JPEG and PNG are accepted."
+                f"Only JPEG, PNG, WebP, and SVG are accepted."
             ),
         )
 
@@ -106,14 +112,14 @@ async def upload_photo(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
             detail=(
                 f"File extension '{suffix}' is not allowed. "
-                f"Use .jpg, .jpeg, or .png."
+                f"Use .jpg, .jpeg, .png, .webp, or .svg."
             ),
         )
 
     # ------------------------------------------------------------------
     # 4. Read file content and check size.
     #    We read the whole file into memory here (fine for photos up to
-    #    20 MB; for very large files you'd stream to disk instead).
+    #    50 MB; for very large files you'd stream to disk instead).
     # ------------------------------------------------------------------
     contents = await file.read()
     file_size = len(contents)
@@ -134,16 +140,29 @@ async def upload_photo(
         )
 
     # 4.1 Validate image integrity (ensures file is not a renamed binary or corrupt file)
-    import io
-    from PIL import Image
-    try:
-        test_img = Image.open(io.BytesIO(contents))
-        test_img.verify()
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Uploaded file '{original_name}' is corrupt or not a valid image format.",
-        )
+    if suffix == ".svg" or file.content_type in ("image/svg+xml", "image/svg"):
+        import xml.etree.ElementTree as ET
+        try:
+            root = ET.fromstring(contents)
+            root_tag = root.tag.lower()
+            if not (root_tag.endswith("svg") or "svg" in root_tag):
+                raise ValueError("Root element is not an <svg> tag.")
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Uploaded file '{original_name}' is corrupt or not a valid SVG file.",
+            )
+    else:
+        import io
+        from PIL import Image
+        try:
+            test_img = Image.open(io.BytesIO(contents))
+            test_img.verify()
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Uploaded file '{original_name}' is corrupt or not a valid image format.",
+            )
 
     # ------------------------------------------------------------------
     # 5. Generate a safe, unique filename using UUID4.
@@ -168,12 +187,18 @@ async def upload_photo(
     # ------------------------------------------------------------------
     # 7. Create the Photo database record.
     # ------------------------------------------------------------------
+    stored_mime = file.content_type
+    if suffix == ".svg":
+        stored_mime = "image/svg+xml"
+    elif suffix == ".webp":
+        stored_mime = "image/webp"
+
     new_photo = Photo(
         event_id=event_id,
         original_filename=original_name,
         stored_filename=stored_filename,
         file_path=relative_path,
-        mime_type=file.content_type,
+        mime_type=stored_mime,
         file_size=file_size,
     )
 
