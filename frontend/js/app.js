@@ -820,6 +820,7 @@ async function loadEvents() {
 // ---------------------------------------------------------------------------
 let _currentEventId = null;
 let _currentGalleryPhotos = [];
+let _allPhotosRepository = [];
 let _currentLightboxIndex = -1;
 let _lightboxZoomed = false;
 
@@ -1453,7 +1454,7 @@ function renderPhotoCard(photo) {
 
     return `
         <div class="${cardClass}" id="photo-card-${photo.id}" data-photo-id="${photo.id}">
-            <div class="photo-thumb-wrap">
+            <div class="photo-thumb-wrap" data-photo-id="${photo.id}" onclick="window.openPhotoLightbox(${photo.id})" title="Click to view full screen">
                 <img
                     class="photo-thumb"
                     src="${imgSrc}"
@@ -1742,7 +1743,7 @@ async function openFinalSelection(eventId) {
             </div>
             ${kept.map(p => `
                 <div class="final-thumb-card" data-photo-id="${p.id}">
-                    <div class="photo-thumb-wrap">
+                    <div class="photo-thumb-wrap" data-photo-id="${p.id}" onclick="window.openPhotoLightbox(${p.id})" title="Click to view full screen">
                         <img
                             class="photo-thumb"
                             src="${photoFileUrl(p.id)}"
@@ -3062,7 +3063,7 @@ async function openBurstGroups(eventId) {
                             let cardStyle = isTop ? "burst-photo-item top-pick-frame" : "burst-photo-item";
                             return `
                                 <div class="${cardStyle}" id="burst-card-${p.id}" data-photo-id="${p.id}">
-                                    <div class="photo-thumb-wrap">
+                                    <div class="photo-thumb-wrap" data-photo-id="${p.id}" onclick="window.openPhotoLightbox(${p.id})" title="Click to view full screen">
                                         <img src="${photoFileUrl(p.id)}" alt="${p.original_filename}" loading="lazy" />
                                         ${isTop ? '<div class="top-pick-badge">&#9733; AI TOP PICK</div>' : ''}
                                         ${dec === 'keep' ? '<div class="card-decision-banner banner-keep">&#10003; Selected</div>' : ''}
@@ -3286,6 +3287,8 @@ async function loadAllPhotos() {
             p.eventName = eventMap[p.event_id] || `Event #${p.event_id}`;
         });
 
+        _allPhotosRepository = allPhotos;
+
         container.innerHTML = `
             <table class="data-table">
                 <thead>
@@ -3301,9 +3304,12 @@ async function loadAllPhotos() {
                 </thead>
                 <tbody>
                     ${allPhotos.map(p => `
-                        <tr>
+                        <tr id="all-photos-row-${p.id}">
                             <td>
-                                <img src="${photoFileUrl(p.id)}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;background:#1e293b;" alt="${escapeHtml(p.original_filename)}" onerror="this.onerror=null;this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'48\' height=\'48\' viewBox=\'0 0 24 24\' fill=\'%2364748b\'><path d=\'M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z\'/></svg>';" />
+                                <div class="table-photo-thumb-wrap" data-photo-id="${p.id}" onclick="window.openPhotoLightbox(${p.id})" style="cursor:pointer;position:relative;display:inline-block;" title="Click to view full screen">
+                                    <img src="${photoFileUrl(p.id)}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;background:#1e293b;transition:all 0.15s ease;display:block;" alt="${escapeHtml(p.original_filename)}" onerror="this.onerror=null;this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'48\' height=\'48\' viewBox=\'0 0 24 24\' fill=\'%2364748b\'><path d=\'M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z\'/></svg>';" />
+                                    <span class="table-thumb-zoom-icon" style="position:absolute;right:2px;bottom:2px;background:rgba(15,17,23,0.85);color:#fff;border-radius:3px;font-size:10px;padding:1px 3px;line-height:1;pointer-events:none;border:1px solid rgba(255,255,255,0.25);">🔍</span>
+                                </div>
                             </td>
                             <td><strong>${p.original_filename}</strong></td>
                             <td>${p.eventName}</td>
@@ -3313,7 +3319,7 @@ async function loadAllPhotos() {
                                     ? `<span class="badge ${p.analysis.ai_recommendation === 'keep' ? 'badge-green' : 'badge-yellow'}">${p.analysis.ai_recommendation.toUpperCase()}</span>`
                                     : '<span class="badge badge-gray">Not analysed</span>'}
                             </td>
-                            <td>
+                            <td id="all-photos-dec-${p.id}">
                                 ${p.analysis?.photographer_decision
                                     ? `<span class="badge ${p.analysis.photographer_decision === 'keep' ? 'badge-blue' : 'badge-red'}">${p.analysis.photographer_decision.toUpperCase()}</span>`
                                     : '<span class="badge badge-gray">Pending</span>'}
@@ -3326,6 +3332,13 @@ async function loadAllPhotos() {
                 </tbody>
             </table>
         `;
+
+        container.querySelectorAll(".table-photo-thumb-wrap").forEach(wrap => {
+            wrap.addEventListener("click", () => {
+                const pid = parseInt(wrap.dataset.photoId);
+                openPhotoLightbox(pid, allPhotos);
+            });
+        });
 
         container.querySelectorAll(".btn-open").forEach(btn => {
             btn.addEventListener("click", () => openEventDetail(btn.dataset.eventId));
@@ -3846,22 +3859,39 @@ async function updateApiStatus() {
 let _lightboxWired = false;
 
 function openPhotoLightbox(photoId, customList = null) {
-    if (customList && customList.length > 0) {
+    if (customList && Array.isArray(customList) && customList.length > 0) {
         _currentGalleryPhotos = customList;
     }
-    const idx = _currentGalleryPhotos.findIndex(p => p.id === photoId);
+
+    let idx = _currentGalleryPhotos.findIndex(p => p.id === photoId);
+    if (idx === -1) {
+        // Fallback: look in _allPhotosRepository
+        if (_allPhotosRepository && _allPhotosRepository.length > 0) {
+            const repoIdx = _allPhotosRepository.findIndex(p => p.id === photoId);
+            if (repoIdx !== -1) {
+                _currentGalleryPhotos = _allPhotosRepository;
+                idx = repoIdx;
+            }
+        }
+    }
+
     if (idx !== -1) {
         _currentLightboxIndex = idx;
-    } else if (_currentGalleryPhotos.length > 0) {
-        _currentLightboxIndex = 0;
     } else {
-        return;
+        const card = document.getElementById(`photo-card-${photoId}`);
+        const filename = card?.querySelector(".photo-filename")?.textContent || `Photo #${photoId}`;
+        const fallbackPhoto = { id: photoId, original_filename: filename, analysis: null };
+        _currentGalleryPhotos = [fallbackPhoto];
+        _currentLightboxIndex = 0;
     }
 
     const modal = document.getElementById("photo-lightbox");
     if (!modal) return;
 
+    modal.classList.add("active");
     modal.style.display = "flex";
+    modal.style.opacity = "1";
+    modal.style.pointerEvents = "auto";
     document.body.style.overflow = "hidden";
     updateLightboxContent();
 }
@@ -3869,7 +3899,10 @@ function openPhotoLightbox(photoId, customList = null) {
 function closePhotoLightbox() {
     const modal = document.getElementById("photo-lightbox");
     if (!modal) return;
+    modal.classList.remove("active");
     modal.style.display = "none";
+    modal.style.opacity = "0";
+    modal.style.pointerEvents = "none";
     document.body.style.overflow = "";
     const img = document.getElementById("lightbox-img");
     if (img) {
@@ -3879,6 +3912,9 @@ function closePhotoLightbox() {
     _lightboxZoomed = false;
     _currentLightboxIndex = -1;
 }
+
+window.openPhotoLightbox = openPhotoLightbox;
+window.closePhotoLightbox = closePhotoLightbox;
 
 function navigateLightbox(direction) {
     if (_currentGalleryPhotos.length === 0) return;
@@ -3973,6 +4009,14 @@ async function applyLightboxDecision(decision) {
                     b.style.boxShadow = "none";
                 }
             });
+        }
+
+        // Also if all-photos-list table row exists in DOM, update it
+        const allPhotosDecCell = document.getElementById(`all-photos-dec-${photoId}`);
+        if (allPhotosDecCell) {
+            allPhotosDecCell.innerHTML = result.photographer_decision === "keep"
+                ? '<span class="badge badge-blue">KEEP</span>'
+                : '<span class="badge badge-red">REJECT</span>';
         }
 
         refreshSummaryAndActionBar();
@@ -4107,7 +4151,7 @@ function initLightbox() {
 
     document.addEventListener("keydown", (e) => {
         const modal = document.getElementById("photo-lightbox");
-        if (!modal || modal.style.display === "none") return;
+        if (!modal || (!modal.classList.contains("active") && modal.style.display === "none")) return;
 
         if (e.key === "Escape") {
             e.preventDefault();
