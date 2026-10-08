@@ -1,7 +1,7 @@
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 
 from backend.app.database.db import get_db
@@ -67,6 +67,7 @@ def create_booking(payload: BookingCreate, db: Session = Depends(get_db)):
     db.add(new_booking)       # stage the INSERT (not sent to MySQL yet)
     db.commit()               # flush INSERT to MySQL and confirm
     db.refresh(new_booking)   # reload row to get auto-generated id, created_at
+    new_booking.client = client
 
     return new_booking
 
@@ -85,7 +86,7 @@ def list_bookings(db: Session = Depends(get_db)):
     Equivalent SQL:
         SELECT * FROM bookings;
     """
-    bookings = db.query(Booking).all()
+    bookings = db.query(Booking).options(joinedload(Booking.client)).all()
     return bookings
 
 
@@ -106,7 +107,7 @@ def get_booking(booking_id: int, db: Session = Depends(get_db)):
     Equivalent SQL:
         SELECT * FROM bookings WHERE id = :booking_id LIMIT 1;
     """
-    booking = db.query(Booking).filter(Booking.id == booking_id).first()
+    booking = db.query(Booking).options(joinedload(Booking.client)).filter(Booking.id == booking_id).first()
 
     if booking is None:
         raise HTTPException(

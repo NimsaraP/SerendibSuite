@@ -358,6 +358,27 @@ function updateDashboardStatsInMemory() {
     }
 }
 
+function getClientName(clientId, fallback = "—") {
+    if (!clientId) return fallback;
+    const c = _allClientsData.find(item => String(item.id) === String(clientId));
+    return c && c.name ? c.name : fallback;
+}
+
+function getBookingClientName(bookingId, fallback = "—") {
+    if (!bookingId) return fallback;
+    const b = _allBookingsData.find(item => String(item.id) === String(bookingId));
+    if (!b) return fallback;
+    if (b.client_name) return b.client_name;
+    return getClientName(b.client_id, fallback);
+}
+
+function getBookingTitle(bookingId, fallback = "") {
+    if (!bookingId) return fallback;
+    const b = _allBookingsData.find(item => String(item.id) === String(bookingId));
+    if (!b) return fallback;
+    return b.title || fallback;
+}
+
 // ---------------------------------------------------------------------------
 // Utility helpers
 // ---------------------------------------------------------------------------
@@ -496,10 +517,21 @@ async function loadDashboard() {
         if (prioritized.length === 0) {
             container.innerHTML = `<p class="empty-msg">No events yet. Create one to get started.</p>`;
         } else {
-            container.innerHTML = prioritized.map(ev => `
+            container.innerHTML = prioritized.map(ev => {
+                const clientName = ev.client_name || getBookingClientName(ev.booking_id) || "";
+                const bookingTitle = ev.booking_title || getBookingTitle(ev.booking_id) || "";
+                return `
                 <div class="recent-event-item" data-id="${ev.id}">
                     <div class="rei-header">
-                        <div class="rei-name">${escapeHtml(ev.name)}</div>
+                        <div>
+                            <div class="rei-name">${escapeHtml(ev.name)}</div>
+                            ${clientName ? `
+                                <div class="rei-client-sub">
+                                    👤 <strong>${escapeHtml(clientName)}</strong>
+                                    ${bookingTitle ? `&bull; 📁 ${escapeHtml(bookingTitle)}` : ''}
+                                </div>
+                            ` : ''}
+                        </div>
                         <div class="rei-pills">
                             ${getRelativeScheduleBadge(ev.event_date)}
                             ${statusBadge(ev.status)}
@@ -511,7 +543,7 @@ async function loadDashboard() {
                         <span class="rei-meta-item">📍 ${escapeHtml(ev.location || "Location TBD")}</span>
                     </div>
                 </div>
-            `).join("");
+            `;}).join("");
 
             container.querySelectorAll(".recent-event-item").forEach(item => {
                 item.addEventListener("click", () => openEventDetail(item.dataset.id));
@@ -559,6 +591,7 @@ function renderEventsTable(eventsToRender) {
             <thead>
                 <tr>
                     <th>#</th>
+                    <th>Client &amp; Booking</th>
                     <th>Event Name</th>
                     <th>Date &amp; Time</th>
                     <th>Timing</th>
@@ -570,9 +603,19 @@ function renderEventsTable(eventsToRender) {
             <tbody>
                 ${eventsToRender.map(ev => {
                     const isNew = String(ev.id) === String(_newlyAddedEventId);
+                    const clientName = ev.client_name || getBookingClientName(ev.booking_id) || "—";
+                    const bookingTitle = ev.booking_title || getBookingTitle(ev.booking_id) || "";
                     return `
                     <tr class="${isNew ? 'row-newly-added' : ''}" id="event-row-${ev.id}">
                         <td>${ev.id}</td>
+                        <td>
+                            <div class="table-client-wrap">
+                                <span class="client-badge-pill" title="Client: ${escapeHtml(clientName)}">
+                                    👤 <strong>${escapeHtml(clientName)}</strong>
+                                </span>
+                                ${bookingTitle ? `<div class="table-booking-sub" title="Booking: ${escapeHtml(bookingTitle)}">📁 ${escapeHtml(bookingTitle)}</div>` : ''}
+                            </div>
+                        </td>
                         <td>
                             <strong>${escapeHtml(ev.name)}</strong>
                             ${isNew ? '<span class="badge-new">JUST ADDED</span>' : ''}
@@ -632,9 +675,13 @@ function applyEventFilter() {
 
     if (searchVal) {
         filtered = filtered.filter(ev => {
+            const clientName = (ev.client_name || getBookingClientName(ev.booking_id) || "").toLowerCase();
+            const bookingTitle = (ev.booking_title || getBookingTitle(ev.booking_id) || "").toLowerCase();
             const nameMatch = (ev.name || "").toLowerCase().includes(searchVal);
             const locMatch = (ev.location || "").toLowerCase().includes(searchVal);
-            return nameMatch || locMatch;
+            const clientMatch = clientName.includes(searchVal);
+            const bookingMatch = bookingTitle.includes(searchVal);
+            return nameMatch || locMatch || clientMatch || bookingMatch;
         });
     }
 
@@ -684,6 +731,16 @@ async function loadEvents() {
     try {
         await populateEventBookingSelect();
         wireEventFilters();
+        if (_allClientsData.length === 0 || _allBookingsData.length === 0) {
+            try {
+                const [clients, bookings] = await Promise.all([
+                    _allClientsData.length === 0 ? getClients() : Promise.resolve(_allClientsData),
+                    _allBookingsData.length === 0 ? getBookings() : Promise.resolve(_allBookingsData),
+                ]);
+                _allClientsData = clients;
+                _allBookingsData = bookings;
+            } catch (_) {}
+        }
         const events = await getEvents();
         if (events.length === 0) {
             container.innerHTML = `<p class="empty-msg">No events yet. Use the form above to create one.</p>`;
@@ -1831,14 +1888,20 @@ function renderBookingsTable(bookingsToRender) {
     container.innerHTML = `
         <table class="data-table">
             <thead>
-                <tr><th>#</th><th>Title</th><th>Booking Date</th><th>Status</th><th>Notes</th><th>Action</th></tr>
+                <tr><th>#</th><th>Client</th><th>Title</th><th>Booking Date</th><th>Status</th><th>Notes</th><th>Action</th></tr>
             </thead>
             <tbody>
                 ${bookingsToRender.map(b => {
                     const isNew = String(b.id) === String(_newlyAddedBookingId);
+                    const clientName = b.client_name || getClientName(b.client_id) || "—";
                     return `
                     <tr class="${isNew ? 'row-newly-added' : ''}" id="booking-row-${b.id}">
                         <td>${b.id}</td>
+                        <td>
+                            <span class="client-badge-pill" title="Client: ${escapeHtml(clientName)}">
+                                👤 <strong>${escapeHtml(clientName)}</strong>
+                            </span>
+                        </td>
                         <td>
                             <strong>${escapeHtml(b.title)}</strong>
                             ${isNew ? '<span class="badge-new">JUST ADDED</span>' : ''}
@@ -1896,9 +1959,11 @@ function applyBookingFilter() {
 
     if (searchVal) {
         filtered = filtered.filter(b => {
+            const clientName = (b.client_name || getClientName(b.client_id) || "").toLowerCase();
             const titleMatch = (b.title || "").toLowerCase().includes(searchVal);
             const notesMatch = (b.notes || "").toLowerCase().includes(searchVal);
-            return titleMatch || notesMatch;
+            const clientMatch = clientName.includes(searchVal);
+            return titleMatch || notesMatch || clientMatch;
         });
     }
 
@@ -1948,6 +2013,9 @@ async function loadBookings() {
     try {
         await populateBookingClientSelect();
         wireBookingFilters();
+        if (_allClientsData.length === 0) {
+            try { _allClientsData = await getClients(); } catch (_) {}
+        }
         const bookings = await getBookings();
         if (bookings.length === 0) {
             container.innerHTML = `<p class="empty-msg">No bookings yet. Use the form above to create one.</p>`;
@@ -2554,6 +2622,7 @@ async function handleCreateBooking(e) {
             status: statusSelect.value,
             notes: optionalText(notesVal),
         });
+        created.client_name = created.client_name || getClientName(created.client_id);
         _allBookingsData.unshift(created);
         _newlyAddedBookingId = created.id;
         pendingEventBookingId = created.id;
@@ -2709,6 +2778,8 @@ async function handleCreateEvent(e) {
             location: optionalText(locationVal),
             status: statusSelect.value,
         });
+        created.client_name = created.client_name || getBookingClientName(created.booking_id);
+        created.booking_title = created.booking_title || getBookingTitle(created.booking_id);
         _allEventsData.unshift(created);
         _newlyAddedEventId = created.id;
         pendingEventBookingId = null;

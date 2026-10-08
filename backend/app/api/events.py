@@ -1,7 +1,7 @@
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 
 from backend.app.database.db import get_db
@@ -41,7 +41,7 @@ def create_event(payload: EventCreate, db: Session = Depends(get_db)):
     # This gives the caller a clean 404 instead of a raw FK constraint
     # violation from MySQL.
     # ------------------------------------------------------------------
-    booking = db.query(Booking).filter(Booking.id == payload.booking_id).first()
+    booking = db.query(Booking).options(joinedload(Booking.client)).filter(Booking.id == payload.booking_id).first()
     if booking is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -81,6 +81,7 @@ def create_event(payload: EventCreate, db: Session = Depends(get_db)):
     db.add(new_event)       # stage the INSERT (not sent to MySQL yet)
     db.commit()             # flush INSERT to MySQL and confirm
     db.refresh(new_event)   # reload row to get auto-generated id, created_at
+    new_event.booking = booking
 
     return new_event
 
@@ -99,7 +100,9 @@ def list_events(db: Session = Depends(get_db)):
     Equivalent SQL:
         SELECT * FROM events;
     """
-    events = db.query(Event).all()
+    events = db.query(Event).options(
+        joinedload(Event.booking).joinedload(Booking.client)
+    ).all()
     return events
 
 
@@ -120,7 +123,9 @@ def get_event(event_id: int, db: Session = Depends(get_db)):
     Equivalent SQL:
         SELECT * FROM events WHERE id = :event_id LIMIT 1;
     """
-    event = db.query(Event).filter(Event.id == event_id).first()
+    event = db.query(Event).options(
+        joinedload(Event.booking).joinedload(Booking.client)
+    ).filter(Event.id == event_id).first()
 
     if event is None:
         raise HTTPException(

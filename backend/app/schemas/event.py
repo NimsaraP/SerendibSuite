@@ -74,6 +74,8 @@ class EventRead(BaseModel):
     location: Optional[str]
     status: str
     created_at: datetime
+    client_name: Optional[str] = None
+    booking_title: Optional[str] = None
 
     # from_attributes=True lets Pydantic read values from SQLAlchemy ORM
     # objects (which use attribute access) instead of plain dicts.

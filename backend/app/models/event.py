@@ -51,3 +51,13 @@ class Event(Base):
     # Relationships
     booking: Mapped["Booking"] = relationship("Booking", back_populates="events")
     photos: Mapped[list["Photo"]] = relationship("Photo", back_populates="event")
+
+    @property
+    def client_name(self) -> Optional[str]:
+        if self.booking and self.booking.client:
+            return self.booking.client.name
+        return None
+
+    @property
+    def booking_title(self) -> Optional[str]:
+        return self.booking.title if self.booking else None

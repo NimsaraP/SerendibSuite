@@ -72,6 +72,7 @@ class BookingRead(BaseModel):
     status: str
     notes: Optional[str]
     created_at: datetime
+    client_name: Optional[str] = None
 
     # from_attributes=True lets Pydantic read values from SQLAlchemy ORM
     # objects (which use attribute access) instead of plain dicts.
