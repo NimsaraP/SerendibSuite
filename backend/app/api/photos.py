@@ -28,7 +28,11 @@ from backend.app.schemas.photo import (
 # browser AND the file extension to add two layers of validation.
 ALLOWED_MIME_TYPES = {
     "image/jpeg",
+    "image/jpg",
+    "image/pjpeg",
+    "image/jfif",
     "image/png",
+    "image/x-png",
     "image/webp",
     "image/svg+xml",
     "image/svg",
@@ -71,8 +75,8 @@ async def upload_photo(
 
     Validation steps:
       1. Verify the event exists (404 if not).
-      2. Check MIME type is JPEG, PNG, WebP, or SVG (415 if not).
-      3. Check file extension matches the allowed extensions (415 if not).
+      2. Check file extension matches the allowed extensions (.jpg, .jpeg, .png, .webp, .svg).
+      3. Check MIME type is an allowed image type (415 if not).
       4. Read the file into memory and check the size (413 if too large).
       5. Generate a UUID-based filename — never trust the original name.
       6. Write to storage/events/{event_id}/
@@ -91,19 +95,7 @@ async def upload_photo(
         )
 
     # ------------------------------------------------------------------
-    # 2. Validate MIME type (from the browser's Content-Type header).
-    # ------------------------------------------------------------------
-    if file.content_type not in ALLOWED_MIME_TYPES:
-        raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail=(
-                f"Unsupported file type '{file.content_type}'. "
-                f"Only JPEG, PNG, WebP, and SVG are accepted."
-            ),
-        )
-
-    # ------------------------------------------------------------------
-    # 3. Validate file extension (second layer — never trust the MIME alone).
+    # 2. Validate file extension (first layer).
     # ------------------------------------------------------------------
     original_name = file.filename or "upload"
     suffix = Path(original_name).suffix.lower()
@@ -115,6 +107,23 @@ async def upload_photo(
                 f"Use .jpg, .jpeg, .png, .webp, or .svg."
             ),
         )
+
+    # ------------------------------------------------------------------
+    # 3. Validate MIME type (from the browser's Content-Type header).
+    # ------------------------------------------------------------------
+    raw_content_type = (file.content_type or "").lower().split(";")[0].strip()
+    if raw_content_type not in ALLOWED_MIME_TYPES:
+        # Fallback: if suffix is allowed, allow clients that send empty or generic binary MIME
+        if suffix in ALLOWED_EXTENSIONS and raw_content_type in ("", "application/octet-stream"):
+            pass
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                detail=(
+                    f"Unsupported file type '{file.content_type}'. "
+                    f"Only .jpg, .jpeg, .png, .webp, and .svg images are accepted."
+                ),
+            )
 
     # ------------------------------------------------------------------
     # 4. Read file content and check size.
@@ -187,8 +196,12 @@ async def upload_photo(
     # ------------------------------------------------------------------
     # 7. Create the Photo database record.
     # ------------------------------------------------------------------
-    stored_mime = file.content_type
-    if suffix == ".svg":
+    stored_mime = raw_content_type or file.content_type
+    if suffix in (".jpg", ".jpeg"):
+        stored_mime = "image/jpeg"
+    elif suffix == ".png":
+        stored_mime = "image/png"
+    elif suffix == ".svg":
         stored_mime = "image/svg+xml"
     elif suffix == ".webp":
         stored_mime = "image/webp"

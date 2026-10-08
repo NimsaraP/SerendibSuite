@@ -929,11 +929,11 @@ async function openEventDetail(eventId, pushHistory = true) {
                         <input
                             type="file"
                             id="photo-file-input"
-                            accept=".jpg,.jpeg,.png,.webp,.svg,image/jpeg,image/png,image/webp,image/svg+xml"
+                            accept=".jpg,.jpeg,.png,.webp,.svg,.JPG,.JPEG,.PNG,.WEBP,.SVG,image/jpeg,image/jpg,image/pjpeg,image/jfif,image/png,image/webp,image/svg+xml"
                             multiple
                             style="display:none"
                         />
-                        <span class="upload-file-label" id="upload-file-label">Click to choose photos or drag &amp; drop here (JPG, PNG, WebP, SVG up to 50MB)</span>
+                        <span class="upload-file-label" id="upload-file-label">Click to choose photos or drag &amp; drop here (.jpg, .jpeg, .png, .webp, .svg up to 50MB)</span>
                     </div>
 
                     <!-- ── Upload progress rows ── -->
@@ -1880,7 +1880,7 @@ async function handleUpload(eventId, filesToUpload = null) {
 
     if (fileInput) fileInput.value = "";
     const labelEl = document.getElementById("upload-file-label");
-    if (labelEl) labelEl.textContent = "Select photo or drag & drop here (JPG, PNG, WebP, SVG up to 50MB)";
+    if (labelEl) labelEl.textContent = "Select photo or drag & drop here (.jpg, .jpeg, .png, .webp, .svg up to 50MB)";
 
     if (successCount > 0) {
         _lastUploadedEventId = eventId;
