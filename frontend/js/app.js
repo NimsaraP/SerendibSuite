@@ -963,20 +963,24 @@ async function openEventDetail(eventId, pushHistory = true) {
         const uploadBtn = document.getElementById("btn-upload-photos");
         const dropZone = document.getElementById("upload-dropzone");
 
-        fileInput.addEventListener("change", () => {
-            if (fileInput.files && fileInput.files.length > 0) {
-                fileLabel.textContent = `${fileInput.files.length} photo${fileInput.files.length > 1 ? "s" : ""} uploading...`;
-                handleUpload(eventId, fileInput.files);
-            }
-        });
+        if (fileInput) {
+            fileInput.addEventListener("change", () => {
+                if (fileInput.files && fileInput.files.length > 0) {
+                    if (fileLabel) fileLabel.textContent = `${fileInput.files.length} photo${fileInput.files.length > 1 ? "s" : ""} uploading...`;
+                    handleUpload(eventId, fileInput.files);
+                }
+            });
+        }
 
-        uploadBtn.addEventListener("click", () => {
-            if (fileInput.files && fileInput.files.length > 0) {
-                handleUpload(eventId, fileInput.files);
-            } else {
-                fileInput.click();
-            }
-        });
+        if (uploadBtn) {
+            uploadBtn.addEventListener("click", () => {
+                if (fileInput && fileInput.files && fileInput.files.length > 0) {
+                    handleUpload(eventId, fileInput.files);
+                } else if (fileInput) {
+                    fileInput.click();
+                }
+            });
+        }
 
         if (dropZone) {
             ["dragenter", "dragover"].forEach(evt => {
@@ -1001,30 +1005,52 @@ async function openEventDetail(eventId, pushHistory = true) {
         }
 
         // Final selection toggle
-        document.getElementById("btn-final-selection").addEventListener("click", () => {
-            openFinalSelection(eventId);
-        });
-        document.getElementById("btn-back-gallery").addEventListener("click", () => {
-            document.getElementById("final-selection-panel").style.display = "none";
-            document.getElementById("burst-groups-panel").style.display = "none";
-            document.getElementById("photos-section").style.display = "";
-        });
+        const btnFinalSelection = document.getElementById("btn-final-selection");
+        if (btnFinalSelection) {
+            btnFinalSelection.addEventListener("click", () => {
+                openFinalSelection(eventId);
+            });
+        }
+
+        const btnBackGallery = document.getElementById("btn-back-gallery");
+        if (btnBackGallery) {
+            btnBackGallery.addEventListener("click", () => {
+                const fs = document.getElementById("final-selection-panel");
+                const bg = document.getElementById("burst-groups-panel");
+                const ps = document.getElementById("photos-section");
+                if (fs) fs.style.display = "none";
+                if (bg) bg.style.display = "none";
+                if (ps) ps.style.display = "";
+            });
+        }
 
         // Duplicate bursts toggle
-        document.getElementById("btn-view-bursts").addEventListener("click", () => {
-            openBurstGroups(eventId);
-        });
-        document.getElementById("btn-back-from-bursts").addEventListener("click", () => {
-            document.getElementById("burst-groups-panel").style.display = "none";
-            document.getElementById("photos-section").style.display = "";
-        });
+        const btnViewBursts = document.getElementById("btn-view-bursts");
+        if (btnViewBursts) {
+            btnViewBursts.addEventListener("click", () => {
+                openBurstGroups(eventId);
+            });
+        }
+
+        const btnBackFromBursts = document.getElementById("btn-back-from-bursts");
+        if (btnBackFromBursts) {
+            btnBackFromBursts.addEventListener("click", () => {
+                const bg = document.getElementById("burst-groups-panel");
+                const ps = document.getElementById("photos-section");
+                if (bg) bg.style.display = "none";
+                if (ps) ps.style.display = "";
+            });
+        }
 
         // XMP Export buttons
         const handleXmpExport = () => {
             window.location.href = xmpExportUrl(eventId);
         };
-        document.getElementById("btn-export-xmp").addEventListener("click", handleXmpExport);
-        document.getElementById("btn-export-xmp-final").addEventListener("click", handleXmpExport);
+        const btnExportXmp = document.getElementById("btn-export-xmp");
+        if (btnExportXmp) btnExportXmp.addEventListener("click", handleXmpExport);
+
+        const btnExportXmpFinal = document.getElementById("btn-export-xmp-final");
+        if (btnExportXmpFinal) btnExportXmpFinal.addEventListener("click", handleXmpExport);
 
         // Load gallery
         await loadPhotoGallery(eventId);
@@ -1139,9 +1165,12 @@ function renderBatchActionBar(photos, eventId) {
         </div>
     `;
 
-    document.getElementById("btn-analyse-all").addEventListener("click", () => {
-        analyseAll(eventId, unanalysed.map(p => p.id));
-    });
+    const btnAnalyseAll = document.getElementById("btn-analyse-all");
+    if (btnAnalyseAll) {
+        btnAnalyseAll.addEventListener("click", () => {
+            analyseAll(eventId, unanalysed.map(p => p.id));
+        });
+    }
 
     const reAllBtn = document.getElementById("btn-reanalyse-everything");
     if (reAllBtn) {
@@ -3649,14 +3678,14 @@ function showCustomCalendar(targetInput) {
 
         popover.innerHTML = html;
 
-        popover.querySelector("#cal-prev").addEventListener("click", (e) => {
+        popover.querySelector("#cal-prev")?.addEventListener("click", (e) => {
             e.stopPropagation();
             viewMonth--;
             if (viewMonth < 0) { viewMonth = 11; viewYear--; }
             renderMonth(viewYear, viewMonth);
         });
 
-        popover.querySelector("#cal-next").addEventListener("click", (e) => {
+        popover.querySelector("#cal-next")?.addEventListener("click", (e) => {
             e.stopPropagation();
             viewMonth++;
             if (viewMonth > 11) { viewMonth = 0; viewYear++; }
@@ -3676,7 +3705,7 @@ function showCustomCalendar(targetInput) {
             });
         });
 
-        popover.querySelector("#cal-today-btn").addEventListener("click", (e) => {
+        popover.querySelector("#cal-today-btn")?.addEventListener("click", (e) => {
             e.stopPropagation();
             targetInput.value = todayLocalIso();
             clearInputError(targetInput);
@@ -3686,7 +3715,7 @@ function showCustomCalendar(targetInput) {
             closeCustomCalendar();
         });
 
-        popover.querySelector("#cal-close-btn").addEventListener("click", (e) => {
+        popover.querySelector("#cal-close-btn")?.addEventListener("click", (e) => {
             e.stopPropagation();
             closeCustomCalendar();
         });
