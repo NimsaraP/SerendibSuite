@@ -10,7 +10,7 @@
           content="SerendibSuite: a professional dashboard for event photographers to manage clients, bookings, events and AI-assisted photo curation." />
 
     <!-- Stylesheet with cache-busting -->
-    <link rel="stylesheet" href="css/style.css?v=20261008_10" />
+    <link rel="stylesheet" href="css/style.css?v=20261008_14" />
 
     <style>
         /* Essential layout for Top Navigation Bar */
@@ -926,8 +926,60 @@
     setInterval(checkApiStatus, 30_000);
 </script>
 
+<!-- =========================================================================
+     FULLSCREEN PHOTO LIGHTBOX MODAL
+     ========================================================================= -->
+<div class="photo-lightbox" id="photo-lightbox" style="display: none;" role="dialog" aria-modal="true" aria-label="Fullscreen photo preview">
+    <div class="lightbox-backdrop" id="lightbox-backdrop"></div>
+    <div class="lightbox-container">
+        <!-- Top Control Bar -->
+        <div class="lightbox-topbar">
+            <div class="lightbox-info">
+                <span class="lightbox-filename" id="lightbox-filename">photo.jpg</span>
+                <span class="lightbox-counter" id="lightbox-counter">Photo 1 of 1</span>
+            </div>
+            <div class="lightbox-top-actions">
+                <button type="button" class="btn-lightbox-action" id="lightbox-btn-zoom" title="Toggle Zoom / Fit (Z)">
+                    <span>🔍</span> <span class="action-text">Zoom</span>
+                </button>
+                <button type="button" class="btn-lightbox-close" id="lightbox-btn-close" title="Close Preview (Esc)">
+                    ✕
+                </button>
+            </div>
+        </div>
+
+        <!-- Middle Main Image Stage with Nav Chevrons -->
+        <div class="lightbox-stage" id="lightbox-stage">
+            <button type="button" class="lightbox-nav-btn prev" id="lightbox-prev" title="Previous photo (Left arrow)">
+                ‹
+            </button>
+            <div class="lightbox-img-wrapper" id="lightbox-img-wrapper">
+                <img class="lightbox-img" id="lightbox-img" src="" alt="Fullscreen photo preview" />
+            </div>
+            <button type="button" class="lightbox-nav-btn next" id="lightbox-next" title="Next photo (Right arrow)">
+                ›
+            </button>
+        </div>
+
+        <!-- Bottom Status & Decision Control Bar -->
+        <div class="lightbox-bottombar">
+            <div class="lightbox-badges" id="lightbox-badges">
+                <!-- Badges dynamically injected -->
+            </div>
+            <div class="lightbox-decisions">
+                <button type="button" class="btn-decision btn-keep btn-lightbox-decision" id="lightbox-keep-btn">
+                    ✓ Keep
+                </button>
+                <button type="button" class="btn-decision btn-reject btn-lightbox-decision" id="lightbox-reject-btn">
+                    ✗ Reject
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Main application logic (ES module) with cache-busting -->
-<script type="module" src="js/app.js?v=20261008_13"></script>
+<script type="module" src="js/app.js?v=20261008_14"></script>
 
 </body>
 </html>

@@ -819,6 +819,9 @@ async function loadEvents() {
 // Event detail view
 // ---------------------------------------------------------------------------
 let _currentEventId = null;
+let _currentGalleryPhotos = [];
+let _currentLightboxIndex = -1;
+let _lightboxZoomed = false;
 
 async function openEventDetail(eventId, pushHistory = true) {
     _currentEventId = eventId;
@@ -1095,6 +1098,7 @@ async function loadPhotoGallery(eventId) {
 
     try {
         const photos = await getPhotosWithAnalysis(eventId);
+        _currentGalleryPhotos = photos || [];
 
         // Update count badge
         if (badge) badge.textContent = photos.length > 0
@@ -1297,6 +1301,20 @@ function updateCardAfterAnalysis(photoId, result) {
     const card = document.getElementById(`photo-card-${photoId}`);
     if (!card) return;
 
+    // Update in-memory photos cache
+    const p = _currentGalleryPhotos.find(item => item.id === photoId);
+    if (p) {
+        p.analysis = {
+            ...(p.analysis || {}),
+            ai_recommendation:     result.ai_recommendation,
+            is_blurry:             result.is_blurry,
+            blur_score:            result.blur_score,
+            face_detected:         result.face_detected,
+            eyes_status:           result.eyes_status,
+            photographer_decision: result.photographer_decision,
+        };
+    }
+
     // Replace the ai-zone with the full analysis zone
     const zone = document.getElementById(`ai-zone-${photoId}`);
     if (zone) {
@@ -1318,6 +1336,10 @@ function updateCardAfterAnalysis(photoId, result) {
     card.querySelectorAll(".chip-pending").forEach(el => el.remove());
 
     // Re-wire all listeners on this card
+    const thumbWrap = card.querySelector(".photo-thumb-wrap");
+    if (thumbWrap) {
+        thumbWrap.onclick = () => openPhotoLightbox(photoId);
+    }
     card.querySelectorAll(".btn-analyse").forEach(btn => {
         btn.addEventListener("click", () => runAnalysis(parseInt(btn.dataset.photoId)));
     });
@@ -1546,6 +1568,16 @@ function renderDecisionSection(photoId, currentDecision) {
 // Attach all event listeners to gallery
 // ---------------------------------------------------------------------------
 function attachAllCardListeners(gallery) {
+    gallery.querySelectorAll(".photo-card").forEach(card => {
+        const thumbWrap = card.querySelector(".photo-thumb-wrap");
+        if (thumbWrap) {
+            thumbWrap.addEventListener("click", () => {
+                const photoId = parseInt(card.dataset.photoId);
+                openPhotoLightbox(photoId);
+            });
+        }
+    });
+
     gallery.querySelectorAll(".btn-analyse").forEach(btn => {
         btn.addEventListener("click", () => runAnalysis(parseInt(btn.dataset.photoId)));
     });
@@ -1709,7 +1741,7 @@ async function openFinalSelection(eventId) {
                 <span class="decision-chip chip-decided-keep">&#10003; ${kept.length} Photo${kept.length > 1 ? "s" : ""} Selected</span>
             </div>
             ${kept.map(p => `
-                <div class="final-thumb-card">
+                <div class="final-thumb-card" data-photo-id="${p.id}">
                     <div class="photo-thumb-wrap">
                         <img
                             class="photo-thumb"
@@ -1729,6 +1761,16 @@ async function openFinalSelection(eventId) {
                 </div>
             `).join("")}
         `;
+
+        grid.querySelectorAll(".final-thumb-card").forEach(card => {
+            const thumbWrap = card.querySelector(".photo-thumb-wrap");
+            if (thumbWrap) {
+                thumbWrap.addEventListener("click", () => {
+                    const pid = parseInt(card.dataset.photoId);
+                    openPhotoLightbox(pid, kept);
+                });
+            }
+        });
 
     } catch (err) {
         grid.innerHTML = `<div class="error-msg">&#9888; ${err.message}</div>`;
@@ -3019,7 +3061,7 @@ async function openBurstGroups(eventId) {
                             const dec = p.analysis?.photographer_decision;
                             let cardStyle = isTop ? "burst-photo-item top-pick-frame" : "burst-photo-item";
                             return `
-                                <div class="${cardStyle}" id="burst-card-${p.id}">
+                                <div class="${cardStyle}" id="burst-card-${p.id}" data-photo-id="${p.id}">
                                     <div class="photo-thumb-wrap">
                                         <img src="${photoFileUrl(p.id)}" alt="${p.original_filename}" loading="lazy" />
                                         ${isTop ? '<div class="top-pick-badge">&#9733; AI TOP PICK</div>' : ''}
@@ -3134,6 +3176,18 @@ async function openBurstGroups(eventId) {
                     showToast("Error setting decision: " + e.message, "error");
                 }
             });
+        });
+
+        // Wire thumbnail clicks in burst view to open fullscreen lightbox
+        const allBurstPhotos = data.groups.flatMap(g => g.photos);
+        container.querySelectorAll(".burst-photo-item").forEach(card => {
+            const thumbWrap = card.querySelector(".photo-thumb-wrap");
+            if (thumbWrap) {
+                thumbWrap.addEventListener("click", () => {
+                    const pid = parseInt(card.dataset.photoId || card.id.replace("burst-card-", ""));
+                    openPhotoLightbox(pid, allBurstPhotos);
+                });
+            }
         });
 
     } catch (err) {
@@ -3787,11 +3841,308 @@ async function updateApiStatus() {
 }
 
 // ---------------------------------------------------------------------------
+// Fullscreen Photo Preview Lightbox
+// ---------------------------------------------------------------------------
+let _lightboxWired = false;
+
+function openPhotoLightbox(photoId, customList = null) {
+    if (customList && customList.length > 0) {
+        _currentGalleryPhotos = customList;
+    }
+    const idx = _currentGalleryPhotos.findIndex(p => p.id === photoId);
+    if (idx !== -1) {
+        _currentLightboxIndex = idx;
+    } else if (_currentGalleryPhotos.length > 0) {
+        _currentLightboxIndex = 0;
+    } else {
+        return;
+    }
+
+    const modal = document.getElementById("photo-lightbox");
+    if (!modal) return;
+
+    modal.style.display = "flex";
+    document.body.style.overflow = "hidden";
+    updateLightboxContent();
+}
+
+function closePhotoLightbox() {
+    const modal = document.getElementById("photo-lightbox");
+    if (!modal) return;
+    modal.style.display = "none";
+    document.body.style.overflow = "";
+    const img = document.getElementById("lightbox-img");
+    if (img) {
+        img.src = "";
+        img.classList.remove("zoomed");
+    }
+    _lightboxZoomed = false;
+    _currentLightboxIndex = -1;
+}
+
+function navigateLightbox(direction) {
+    if (_currentGalleryPhotos.length === 0) return;
+    _currentLightboxIndex = (_currentLightboxIndex + direction + _currentGalleryPhotos.length) % _currentGalleryPhotos.length;
+    updateLightboxContent();
+}
+
+function toggleLightboxZoom() {
+    _lightboxZoomed = !_lightboxZoomed;
+    const img = document.getElementById("lightbox-img");
+    const zoomBtn = document.getElementById("lightbox-btn-zoom");
+    if (img) {
+        if (_lightboxZoomed) {
+            img.classList.add("zoomed");
+        } else {
+            img.classList.remove("zoomed");
+        }
+    }
+    if (zoomBtn) {
+        zoomBtn.innerHTML = _lightboxZoomed
+            ? `<span>🔍</span> <span class="action-text">Fit</span>`
+            : `<span>🔍</span> <span class="action-text">Zoom</span>`;
+    }
+}
+
+async function applyLightboxDecision(decision) {
+    if (_currentLightboxIndex < 0 || !_currentGalleryPhotos[_currentLightboxIndex]) return;
+    const photo = _currentGalleryPhotos[_currentLightboxIndex];
+    const photoId = photo.id;
+
+    const keepBtn = document.getElementById("lightbox-keep-btn");
+    const rejectBtn = document.getElementById("lightbox-reject-btn");
+    if (keepBtn) keepBtn.disabled = true;
+    if (rejectBtn) rejectBtn.disabled = true;
+
+    try {
+        const result = await setDecision(photoId, decision);
+        if (!photo.analysis) photo.analysis = {};
+        photo.analysis.photographer_decision = result.photographer_decision;
+
+        // If gallery card is in DOM, update it
+        const card = document.getElementById(`photo-card-${photoId}`);
+        if (card) {
+            card.classList.remove("card-selected", "card-rejected");
+            if (result.photographer_decision === "keep")   card.classList.add("card-selected");
+            if (result.photographer_decision === "reject") card.classList.add("card-rejected");
+
+            const thumbWrap = card.querySelector(".photo-thumb-wrap");
+            if (thumbWrap) {
+                thumbWrap.querySelectorAll(".card-decision-banner").forEach(b => b.remove());
+                if (result.photographer_decision === "keep") {
+                    thumbWrap.insertAdjacentHTML("beforeend", '<div class="card-decision-banner banner-keep">&#10003; Selected</div>');
+                } else if (result.photographer_decision === "reject") {
+                    thumbWrap.insertAdjacentHTML("beforeend", '<div class="card-decision-banner banner-reject">&#10007; Rejected</div>');
+                }
+            }
+
+            const decisionZone = document.getElementById(`decision-zone-${photoId}`);
+            if (decisionZone) {
+                decisionZone.outerHTML = renderDecisionSection(photoId, result.photographer_decision);
+                const newZone = document.getElementById(`decision-zone-${photoId}`);
+                if (newZone) {
+                    newZone.querySelectorAll(".btn-decision").forEach(btn => {
+                        btn.addEventListener("click", () =>
+                            handleDecision(parseInt(btn.dataset.photoId), btn.dataset.decision)
+                        );
+                    });
+                }
+            }
+        }
+
+        // If burst card is in DOM, update it
+        const burstCard = document.getElementById(`burst-card-${photoId}`);
+        if (burstCard) {
+            const bThumb = burstCard.querySelector(".photo-thumb-wrap");
+            if (bThumb) {
+                bThumb.querySelectorAll(".card-decision-banner").forEach(el => el.remove());
+                if (result.photographer_decision === "keep") {
+                    bThumb.insertAdjacentHTML("beforeend", '<div class="card-decision-banner banner-keep">&#10003; Selected</div>');
+                } else if (result.photographer_decision === "reject") {
+                    bThumb.insertAdjacentHTML("beforeend", '<div class="card-decision-banner banner-reject">&#10007; Rejected</div>');
+                }
+            }
+            burstCard.querySelectorAll(".btn-decision").forEach(b => {
+                if (b.dataset.decision === decision) {
+                    b.style.opacity = "1";
+                    b.style.fontWeight = "700";
+                    b.style.boxShadow = "0 0 0 2px #ffffff";
+                } else {
+                    b.style.opacity = "0.6";
+                    b.style.fontWeight = "normal";
+                    b.style.boxShadow = "none";
+                }
+            });
+        }
+
+        refreshSummaryAndActionBar();
+        updateLightboxContent();
+        showToast(`Photo #${photoId} marked as ${decision === "keep" ? "Keep" : "Reject"}`);
+    } catch (err) {
+        showToast("Error updating decision: " + err.message, "error");
+    } finally {
+        if (keepBtn) keepBtn.disabled = false;
+        if (rejectBtn) rejectBtn.disabled = false;
+    }
+}
+
+function updateLightboxContent() {
+    if (_currentLightboxIndex < 0 || !_currentGalleryPhotos[_currentLightboxIndex]) return;
+    const photo = _currentGalleryPhotos[_currentLightboxIndex];
+    const a = photo.analysis;
+
+    const nameEl = document.getElementById("lightbox-filename");
+    if (nameEl) nameEl.textContent = photo.original_filename || `Photo #${photo.id}`;
+
+    const countEl = document.getElementById("lightbox-counter");
+    if (countEl) countEl.textContent = `Photo ${_currentLightboxIndex + 1} of ${_currentGalleryPhotos.length}`;
+
+    const img = document.getElementById("lightbox-img");
+    if (img) {
+        img.src = photoFileUrl(photo.id);
+        img.alt = photo.original_filename || `Photo #${photo.id}`;
+        img.classList.remove("zoomed");
+    }
+    _lightboxZoomed = false;
+    const zoomBtn = document.getElementById("lightbox-btn-zoom");
+    if (zoomBtn) {
+        zoomBtn.innerHTML = `<span>🔍</span> <span class="action-text">Zoom</span>`;
+    }
+
+    const prevBtn = document.getElementById("lightbox-prev");
+    const nextBtn = document.getElementById("lightbox-next");
+    if (prevBtn && nextBtn) {
+        if (_currentGalleryPhotos.length <= 1) {
+            prevBtn.style.display = "none";
+            nextBtn.style.display = "none";
+        } else {
+            prevBtn.style.display = "flex";
+            nextBtn.style.display = "flex";
+        }
+    }
+
+    const badgesContainer = document.getElementById("lightbox-badges");
+    if (badgesContainer) {
+        if (a) {
+            const recClass  = a.ai_recommendation === "keep" ? "chip-keep" : "chip-review";
+            const recLabel  = a.ai_recommendation === "keep" ? "&#10004; AI: KEEP" : "&#9888; AI: REVIEW";
+            const blurLabel = a.is_blurry === true ? "Blurry" : a.is_blurry === false ? "Sharp" : "—";
+            const blurClass = a.is_blurry === true ? "chip-review" : "chip-keep";
+            const blurScore = (a.blur_score !== null && a.blur_score !== undefined) ? a.blur_score.toFixed(1) : "—";
+            const faceLabel = a.face_detected === true ? "Face: Yes" : a.face_detected === false ? "Face: None" : "Face: —";
+            const eyeLabel  = a.eyes_status ? `Eyes: ${a.eyes_status}` : "Eyes: —";
+
+            let decisionChip = `<span class="decision-chip chip-undecided">Decision: Undecided</span>`;
+            if (a.photographer_decision === "keep") {
+                decisionChip = `<span class="decision-chip chip-decided-keep">&#10003; Selected (Keep)</span>`;
+            } else if (a.photographer_decision === "reject") {
+                decisionChip = `<span class="decision-chip chip-decided-reject">&#10007; Rejected</span>`;
+            }
+
+            badgesContainer.innerHTML = `
+                <span class="ai-result-chip ${recClass}">${recLabel}</span>
+                <span class="ai-result-chip ${blurClass}">&#128269; ${blurLabel} (${blurScore})</span>
+                <span class="ai-result-chip chip-neutral">&#128578; ${faceLabel}</span>
+                <span class="ai-result-chip chip-neutral">&#128065; ${eyeLabel}</span>
+                ${decisionChip}
+            `;
+        } else {
+            badgesContainer.innerHTML = `
+                <span class="ai-status-chip chip-pending">Not analysed</span>
+                <span class="decision-chip chip-undecided">Decision: Undecided</span>
+            `;
+        }
+    }
+
+    const keepBtn = document.getElementById("lightbox-keep-btn");
+    const rejectBtn = document.getElementById("lightbox-reject-btn");
+    if (keepBtn && rejectBtn) {
+        const dec = a?.photographer_decision;
+        if (dec === "keep") {
+            keepBtn.style.opacity = "1";
+            keepBtn.style.boxShadow = "0 0 0 2px #10b981, 0 4px 12px rgba(16,185,129,0.4)";
+            keepBtn.innerHTML = "&#10003; Kept (Selected)";
+            rejectBtn.style.opacity = "0.5";
+            rejectBtn.style.boxShadow = "none";
+            rejectBtn.innerHTML = "&#10007; Reject";
+        } else if (dec === "reject") {
+            rejectBtn.style.opacity = "1";
+            rejectBtn.style.boxShadow = "0 0 0 2px #ef4444, 0 4px 12px rgba(239,68,68,0.4)";
+            rejectBtn.innerHTML = "&#10007; Rejected";
+            keepBtn.style.opacity = "0.5";
+            keepBtn.style.boxShadow = "none";
+            keepBtn.innerHTML = "&#10003; Keep";
+        } else {
+            keepBtn.style.opacity = "1";
+            keepBtn.style.boxShadow = "none";
+            keepBtn.innerHTML = "&#10003; Keep";
+            rejectBtn.style.opacity = "1";
+            rejectBtn.style.boxShadow = "none";
+            rejectBtn.innerHTML = "&#10007; Reject";
+        }
+    }
+}
+
+function initLightbox() {
+    if (_lightboxWired) return;
+    _lightboxWired = true;
+
+    const closeBtn = document.getElementById("lightbox-btn-close");
+    const backdrop = document.getElementById("lightbox-backdrop");
+    const zoomBtn = document.getElementById("lightbox-btn-zoom");
+    const img = document.getElementById("lightbox-img");
+    const prevBtn = document.getElementById("lightbox-prev");
+    const nextBtn = document.getElementById("lightbox-next");
+    const keepBtn = document.getElementById("lightbox-keep-btn");
+    const rejectBtn = document.getElementById("lightbox-reject-btn");
+
+    if (closeBtn) closeBtn.addEventListener("click", closePhotoLightbox);
+    if (backdrop) backdrop.addEventListener("click", closePhotoLightbox);
+    if (zoomBtn) zoomBtn.addEventListener("click", toggleLightboxZoom);
+    if (img) img.addEventListener("click", toggleLightboxZoom);
+    if (prevBtn) prevBtn.addEventListener("click", () => navigateLightbox(-1));
+    if (nextBtn) nextBtn.addEventListener("click", () => navigateLightbox(1));
+    if (keepBtn) keepBtn.addEventListener("click", () => applyLightboxDecision("keep"));
+    if (rejectBtn) rejectBtn.addEventListener("click", () => applyLightboxDecision("reject"));
+
+    document.addEventListener("keydown", (e) => {
+        const modal = document.getElementById("photo-lightbox");
+        if (!modal || modal.style.display === "none") return;
+
+        if (e.key === "Escape") {
+            e.preventDefault();
+            closePhotoLightbox();
+        } else if (e.key === "ArrowLeft") {
+            e.preventDefault();
+            navigateLightbox(-1);
+        } else if (e.key === "ArrowRight") {
+            e.preventDefault();
+            navigateLightbox(1);
+        } else if (e.key === "k" || e.key === "K") {
+            e.preventDefault();
+            applyLightboxDecision("keep");
+        } else if (e.key === "r" || e.key === "R") {
+            e.preventDefault();
+            applyLightboxDecision("reject");
+        } else if (e.key === "z" || e.key === "Z") {
+            e.preventDefault();
+            toggleLightboxZoom();
+        }
+    });
+
+    window.openPhotoLightbox = openPhotoLightbox;
+    window.closePhotoLightbox = closePhotoLightbox;
+    window.navigateLightbox = navigateLightbox;
+    window.toggleLightboxZoom = toggleLightboxZoom;
+}
+
+// ---------------------------------------------------------------------------
 // Bootstrap
 // ---------------------------------------------------------------------------
 wireCreateForms();
 initBackNavigationListeners();
 initScrollToTop();
+initLightbox();
 updateApiStatus();
 setInterval(updateApiStatus, 15000);
 showSection("section-dashboard", { pushHistory: false });
