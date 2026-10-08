@@ -499,14 +499,20 @@ async function loadDashboard() {
             getBookings(),
             getEvents(),
         ]);
+        const validEvents = (events || []).filter(ev => {
+            const cName = ev.client_name || getBookingClientName(ev.booking_id);
+            const bTitle = ev.booking_title || getBookingTitle(ev.booking_id);
+            return Boolean(cName && cName !== "—" && cName !== "-" && cName !== "None") &&
+                   Boolean(bTitle && bTitle !== "—" && bTitle !== "-" && bTitle !== "None");
+        });
         _allClientsData = clients;
         _allBookingsData = bookings;
-        _allEventsData = events;
+        _allEventsData = validEvents;
 
         document.getElementById("stat-clients").textContent  = clients.length;
         document.getElementById("stat-bookings").textContent = bookings.length;
 
-        const upcoming = events.filter(e =>
+        const upcoming = validEvents.filter(e =>
             e.status === "scheduled" || e.status === "in_progress"
         );
         document.getElementById("stat-upcoming").textContent = upcoming.length;
@@ -610,7 +616,16 @@ function parseEventHour(timeStr) {
 function renderEventsTable(eventsToRender) {
     const container = document.getElementById("events-list");
     if (!container) return;
-    if (eventsToRender.length === 0) {
+
+    // Filter out events lacking client and booking
+    const validEvents = (eventsToRender || []).filter(ev => {
+        const cName = ev.client_name || getBookingClientName(ev.booking_id);
+        const bTitle = ev.booking_title || getBookingTitle(ev.booking_id);
+        return Boolean(cName && cName !== "—" && cName !== "-" && cName !== "None") &&
+               Boolean(bTitle && bTitle !== "—" && bTitle !== "-" && bTitle !== "None");
+    });
+
+    if (validEvents.length === 0) {
         container.innerHTML = `<p class="empty-msg">No events match the selected filter criteria.</p>`;
         return;
     }
@@ -630,7 +645,7 @@ function renderEventsTable(eventsToRender) {
                 </tr>
             </thead>
             <tbody>
-                ${eventsToRender.map(ev => {
+                ${validEvents.map(ev => {
                     const isNew = String(ev.id) === String(_newlyAddedEventId);
                     const isUploaded = String(ev.id) === String(_lastUploadedEventId);
                     const clientName = ev.client_name || getBookingClientName(ev.booking_id) || "—";
@@ -773,7 +788,14 @@ async function loadEvents() {
                 _allBookingsData = bookings;
             } catch (_) {}
         }
-        const events = await getEvents();
+        const rawEvents = await getEvents();
+        const events = (rawEvents || []).filter(ev => {
+            const cName = ev.client_name || getBookingClientName(ev.booking_id);
+            const bTitle = ev.booking_title || getBookingTitle(ev.booking_id);
+            return Boolean(cName && cName !== "—" && cName !== "-" && cName !== "None") &&
+                   Boolean(bTitle && bTitle !== "—" && bTitle !== "-" && bTitle !== "None");
+        });
+
         if (events.length === 0) {
             container.innerHTML = `<p class="empty-msg">No events yet. Use the form above to create one.</p>`;
             return;

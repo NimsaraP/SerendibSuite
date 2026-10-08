@@ -7,6 +7,7 @@ from sqlalchemy import func
 from backend.app.database.db import get_db
 from backend.app.models.event import Event
 from backend.app.models.booking import Booking
+from backend.app.models.client import Client
 from backend.app.schemas.event import EventCreate, EventRead
 
 # -----------------------------------------------------------------------------
@@ -105,14 +106,16 @@ def create_event(payload: EventCreate, db: Session = Depends(get_db)):
 )
 def list_events(db: Session = Depends(get_db)):
     """
-    Return every event row from the database.
-
-    Equivalent SQL:
-        SELECT * FROM events;
+    Return all events that belong to a valid booking and client.
+    Orphan events without a valid booking and client are excluded.
     """
-    events = db.query(Event).options(
-        joinedload(Event.booking).joinedload(Booking.client)
-    ).all()
+    events = (
+        db.query(Event)
+        .join(Booking, Event.booking_id == Booking.id)
+        .join(Client, Booking.client_id == Client.id)
+        .options(joinedload(Event.booking).joinedload(Booking.client))
+        .all()
+    )
     return events
 
 
