@@ -339,6 +339,25 @@ let _allClientsData = [];
 let _allBookingsData = [];
 let _allEventsData = [];
 
+// Track newly added IDs for real-time visual highlight
+let _newlyAddedClientId = null;
+let _newlyAddedBookingId = null;
+let _newlyAddedEventId = null;
+
+function updateDashboardStatsInMemory() {
+    const statClients = document.getElementById("stat-clients");
+    const statBookings = document.getElementById("stat-bookings");
+    const statUpcoming = document.getElementById("stat-upcoming");
+    if (statClients) statClients.textContent = _allClientsData.length;
+    if (statBookings) statBookings.textContent = _allBookingsData.length;
+    if (statUpcoming) {
+        const upcoming = _allEventsData.filter(e =>
+            e.status === "scheduled" || e.status === "in_progress"
+        );
+        statUpcoming.textContent = upcoming.length;
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Utility helpers
 // ---------------------------------------------------------------------------
@@ -549,10 +568,15 @@ function renderEventsTable(eventsToRender) {
                 </tr>
             </thead>
             <tbody>
-                ${eventsToRender.map(ev => `
-                    <tr>
+                ${eventsToRender.map(ev => {
+                    const isNew = String(ev.id) === String(_newlyAddedEventId);
+                    return `
+                    <tr class="${isNew ? 'row-newly-added' : ''}" id="event-row-${ev.id}">
                         <td>${ev.id}</td>
-                        <td><strong>${escapeHtml(ev.name)}</strong></td>
+                        <td>
+                            <strong>${escapeHtml(ev.name)}</strong>
+                            ${isNew ? '<span class="badge-new">JUST ADDED</span>' : ''}
+                        </td>
                         <td>
                             <div><strong>${formatDate(ev.event_date)}</strong></div>
                             ${ev.event_time ? `<div class="event-time-pill">⏰ ${escapeHtml(formatTime(ev.event_time))}</div>` : '<div class="stat-hint">—</div>'}
@@ -566,7 +590,7 @@ function renderEventsTable(eventsToRender) {
                             </button>
                         </td>
                     </tr>
-                `).join("")}
+                `;}).join("")}
             </tbody>
         </table>
     `;
@@ -1672,21 +1696,44 @@ function renderClientsTable(clientsToRender) {
     container.innerHTML = `
         <table class="data-table">
             <thead>
-                <tr><th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>Added Date</th></tr>
+                <tr><th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>Added Date</th><th>Action</th></tr>
             </thead>
             <tbody>
-                ${clientsToRender.map(c => `
-                    <tr>
+                ${clientsToRender.map(c => {
+                    const isNew = String(c.id) === String(_newlyAddedClientId);
+                    return `
+                    <tr class="${isNew ? 'row-newly-added' : ''}" id="client-row-${c.id}">
                         <td>${c.id}</td>
-                        <td><strong>${escapeHtml(c.name)}</strong></td>
+                        <td>
+                            <strong>${escapeHtml(c.name)}</strong>
+                            ${isNew ? '<span class="badge-new">JUST ADDED</span>' : ''}
+                        </td>
                         <td>${escapeHtml(c.email)}</td>
                         <td>${escapeHtml(c.phone || "—")}</td>
                         <td>${formatDate(c.created_at)}</td>
+                        <td>
+                            <button class="btn-open btn-client-add-booking" data-client-id="${c.id}" title="Create a booking for this client">
+                                + Add Booking
+                            </button>
+                        </td>
                     </tr>
-                `).join("")}
+                `;}).join("")}
             </tbody>
         </table>
     `;
+
+    container.querySelectorAll(".btn-client-add-booking").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const cId = btn.dataset.clientId;
+            pendingBookingClientId = cId;
+            showSection("section-bookings");
+            const select = document.getElementById("booking-client");
+            if (select) {
+                select.value = cId;
+                select.focus();
+            }
+        });
+    });
 }
 
 function applyClientFilter() {
@@ -1784,21 +1831,44 @@ function renderBookingsTable(bookingsToRender) {
     container.innerHTML = `
         <table class="data-table">
             <thead>
-                <tr><th>#</th><th>Title</th><th>Booking Date</th><th>Status</th><th>Notes</th></tr>
+                <tr><th>#</th><th>Title</th><th>Booking Date</th><th>Status</th><th>Notes</th><th>Action</th></tr>
             </thead>
             <tbody>
-                ${bookingsToRender.map(b => `
-                    <tr>
+                ${bookingsToRender.map(b => {
+                    const isNew = String(b.id) === String(_newlyAddedBookingId);
+                    return `
+                    <tr class="${isNew ? 'row-newly-added' : ''}" id="booking-row-${b.id}">
                         <td>${b.id}</td>
-                        <td><strong>${escapeHtml(b.title)}</strong></td>
+                        <td>
+                            <strong>${escapeHtml(b.title)}</strong>
+                            ${isNew ? '<span class="badge-new">JUST ADDED</span>' : ''}
+                        </td>
                         <td>${formatDate(b.booking_date)}</td>
                         <td>${statusBadge(b.status)}</td>
                         <td>${escapeHtml(b.notes || "—")}</td>
+                        <td>
+                            <button class="btn-open btn-booking-add-event" data-booking-id="${b.id}" title="Create an event for this booking">
+                                + Add Event
+                            </button>
+                        </td>
                     </tr>
-                `).join("")}
+                `;}).join("")}
             </tbody>
         </table>
     `;
+
+    container.querySelectorAll(".btn-booking-add-event").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const bId = btn.dataset.bookingId;
+            pendingEventBookingId = bId;
+            showSection("section-events");
+            const select = document.getElementById("event-booking");
+            if (select) {
+                select.value = bId;
+                select.focus();
+            }
+        });
+    });
 }
 
 function applyBookingFilter() {
@@ -2346,13 +2416,41 @@ async function handleCreateClient(e) {
             phone: optionalText(phoneVal),
             notes: optionalText(notesVal),
         });
-        _allClientsData.push(created);
+        _allClientsData.unshift(created);
+        _newlyAddedClientId = created.id;
         pendingBookingClientId = created.id;
         form.reset();
         clearAllFormErrors(form);
         showFormWarning("client-form-warning", "");
-        showToast(`Client "${created.name}" created successfully!`);
-        showSection("section-bookings");
+
+        // Clear filter inputs so the newly added client is immediately visible
+        const dateInput = document.getElementById("filter-client-date");
+        const searchInput = document.getElementById("filter-client-search");
+        if (dateInput) dateInput.value = "";
+        if (searchInput) searchInput.value = "";
+        applyClientFilter();
+
+        updateDashboardStatsInMemory();
+
+        // Smoothly scroll to the newly created row in real time
+        setTimeout(() => {
+            const newRow = document.getElementById(`client-row-${created.id}`);
+            if (newRow) {
+                newRow.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+        }, 80);
+
+        // Remove glowing indicator after 6 seconds
+        setTimeout(() => {
+            if (_newlyAddedClientId === created.id) {
+                _newlyAddedClientId = null;
+            }
+        }, 6000);
+
+        // Pre-populate booking dropdown in background
+        populateBookingClientSelect().catch(() => {});
+
+        showToast(`Client "${created.name}" created successfully! Added to table below.`);
     } catch (err) {
         const msg = err.message || "Failed to create client";
         showFormError("client-form-error", msg);
@@ -2456,7 +2554,8 @@ async function handleCreateBooking(e) {
             status: statusSelect.value,
             notes: optionalText(notesVal),
         });
-        _allBookingsData.push(created);
+        _allBookingsData.unshift(created);
+        _newlyAddedBookingId = created.id;
         pendingEventBookingId = created.id;
         pendingBookingClientId = null;
         form.reset();
@@ -2468,8 +2567,37 @@ async function handleCreateBooking(e) {
             updateChipState(bookingDateEl);
         }
         document.getElementById("booking-status").value = "confirmed";
-        showToast(`Booking "${created.title}" created successfully!`);
-        showSection("section-events");
+
+        // Reset filter inputs so newly created booking is immediately visible at top
+        const filterDate = document.getElementById("filter-booking-date");
+        const filterStatus = document.getElementById("filter-booking-status");
+        const filterSearch = document.getElementById("filter-booking-search");
+        if (filterDate) filterDate.value = "";
+        if (filterStatus) filterStatus.value = "";
+        if (filterSearch) filterSearch.value = "";
+        applyBookingFilter();
+
+        updateDashboardStatsInMemory();
+
+        // Smoothly scroll to the newly created booking row in real time
+        setTimeout(() => {
+            const newRow = document.getElementById(`booking-row-${created.id}`);
+            if (newRow) {
+                newRow.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+        }, 80);
+
+        // Remove glowing indicator after 6 seconds
+        setTimeout(() => {
+            if (_newlyAddedBookingId === created.id) {
+                _newlyAddedBookingId = null;
+            }
+        }, 6000);
+
+        // Pre-populate event booking dropdown in background
+        populateEventBookingSelect().catch(() => {});
+
+        showToast(`Booking "${created.title}" created successfully! Added to table below.`);
     } catch (err) {
         const msg = err.message || "Failed to create booking";
         showFormError("booking-form-error", msg);
@@ -2581,7 +2709,8 @@ async function handleCreateEvent(e) {
             location: optionalText(locationVal),
             status: statusSelect.value,
         });
-        _allEventsData.push(created);
+        _allEventsData.unshift(created);
+        _newlyAddedEventId = created.id;
         pendingEventBookingId = null;
         form.reset();
         clearAllFormErrors(form);
@@ -2596,8 +2725,34 @@ async function handleCreateEvent(e) {
             updateChipState(timeInput);
         }
         document.getElementById("event-status").value = "scheduled";
-        showToast(`Event "${created.name}" created successfully!`);
-        await openEventDetail(created.id);
+
+        // Reset filter inputs so newly created event is immediately visible at top
+        const filterDate = document.getElementById("filter-event-date");
+        const filterTime = document.getElementById("filter-event-time");
+        const filterSearch = document.getElementById("filter-event-search");
+        if (filterDate) filterDate.value = "";
+        if (filterTime) filterTime.value = "";
+        if (filterSearch) filterSearch.value = "";
+        applyEventFilter();
+
+        updateDashboardStatsInMemory();
+
+        // Smoothly scroll to the newly created event row in real time
+        setTimeout(() => {
+            const newRow = document.getElementById(`event-row-${created.id}`);
+            if (newRow) {
+                newRow.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+        }, 80);
+
+        // Remove glowing indicator after 6 seconds
+        setTimeout(() => {
+            if (_newlyAddedEventId === created.id) {
+                _newlyAddedEventId = null;
+            }
+        }, 6000);
+
+        showToast(`Event "${created.name}" created successfully! Added to events list below.`);
     } catch (err) {
         const msg = err.message || "Failed to create event";
         showFormError("event-form-error", msg);

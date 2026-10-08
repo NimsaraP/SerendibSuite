@@ -2592,3 +2592,40 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
         font-size: 12px;
     }
 }
+
+/* ==========================================================================
+   Real-Time Creation Glowing Highlights
+   ========================================================================== */
+@keyframes realTimeRowGlow {
+    0% {
+        background-color: rgba(52, 211, 153, 0.45);
+        box-shadow: inset 0 0 0 2px #34d399, 0 0 16px rgba(52, 211, 153, 0.5);
+    }
+    50% {
+        background-color: rgba(108, 99, 255, 0.3);
+        box-shadow: inset 0 0 0 2px #6c63ff, 0 0 14px rgba(108, 99, 255, 0.4);
+    }
+    100% {
+        background-color: transparent;
+        box-shadow: none;
+    }
+}
+
+.row-newly-added {
+    animation: realTimeRowGlow 4s ease-out forwards !important;
+}
+
+.badge-new {
+    display: inline-block;
+    background: #10b981;
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 4px;
+    margin-left: 8px;
+    letter-spacing: 0.5px;
+    animation: pulse 1.5s infinite;
+    vertical-align: middle;
+}
