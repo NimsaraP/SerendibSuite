@@ -185,8 +185,25 @@ def _analyse_with_mediapipe(image_path: Path) -> EyeResult:
     with mp_vision.FaceLandmarker.create_from_options(opts) as detector:
         result = detector.detect(mp_image)
 
-    num_faces = len(result.face_landmarks) if result.face_landmarks else 0
+    valid_face_landmarks = []
+    if result.face_landmarks:
+        for landmarks in result.face_landmarks:
+            # Check essential landmark indices: left eye(33), right eye(263), nose tip(1), lower lip(17), chin(152)
+            key_pts = [1, 17, 33, 152, 263]
+            in_bounds = True
+            for idx in key_pts:
+                lm = landmarks[idx]
+                if lm.x < 0.01 or lm.x > 0.99 or lm.y < 0.01 or lm.y > 0.99:
+                    in_bounds = False
+                    break
+            if in_bounds:
+                eye_y = min(landmarks[33].y, landmarks[263].y)
+                nose_y = landmarks[1].y
+                chin_y = landmarks[152].y
+                if eye_y < nose_y < chin_y:
+                    valid_face_landmarks.append(landmarks)
 
+    num_faces = len(valid_face_landmarks)
     if num_faces == 0:
         return EyeResult(
             face_detected=False,
@@ -201,7 +218,7 @@ def _analyse_with_mediapipe(image_path: Path) -> EyeResult:
     has_closed = False
     has_partial = False
 
-    for landmarks in result.face_landmarks:
+    for landmarks in valid_face_landmarks:
         left_ear  = _ear(landmarks, _LEFT_EYE_INDICES,  w, h)
         right_ear = _ear(landmarks, _RIGHT_EYE_INDICES, w, h)
 
@@ -241,7 +258,44 @@ def _analyse_with_yunet(image_path: Path) -> EyeResult:
     detector = cv2.FaceDetectorYN.create(str(model_path), "", (w, h), 0.5, 0.3, 5000)
     _, faces = detector.detect(bgr)
 
-    num_faces = len(faces) if faces is not None else 0
+    def _is_full_face(f) -> bool:
+        """
+        Check that all essential facial features (both eyes, nose, and mouth)
+        are completely within the image boundaries, ensuring macro crops
+        or edge-clipped faces are not falsely identified as full faces.
+        """
+        landmarks = [
+            (f[4], f[5]),   # right eye
+            (f[6], f[7]),   # left eye
+            (f[8], f[9]),   # nose tip
+            (f[10], f[11]), # right mouth corner
+            (f[12], f[13]), # left mouth corner
+        ]
+        margin = 2
+        for px, py in landmarks:
+            if px < margin or px >= (w - margin) or py < margin or py >= (h - margin):
+                return False
+
+        rey, ley, ny, rmy, lmy = f[5], f[7], f[9], f[11], f[13]
+        # Anatomical vertical ordering: eyes above nose, nose above mouth
+        if rey >= ny or ley >= ny:
+            return False
+        if ny >= rmy or ny >= lmy:
+            return False
+
+        fh = f[3]
+        # Ensure mouth/chin is not cut off at the bottom border
+        if max(rmy, lmy) > h - max(4, int(fh * 0.05)):
+            return False
+
+        return True
+
+    if faces is not None:
+        valid_faces = [f for f in faces if _is_full_face(f)]
+    else:
+        valid_faces = []
+
+    num_faces = len(valid_faces)
     if num_faces == 0:
         return EyeResult(
             face_detected=False,
@@ -254,7 +308,7 @@ def _analyse_with_yunet(image_path: Path) -> EyeResult:
     has_closed = False
     has_partial = False
 
-    for face in faces:
+    for face in valid_faces:
         fx, fy, fw, fh = int(face[0]), int(face[1]), int(face[2]), int(face[3])
         # Sample cheek skin tone for comparison with eye center
         cheek = gray[max(0, fy + int(fh * 0.55)):min(h, fy + int(fh * 0.75)),
@@ -344,7 +398,14 @@ def _analyse_with_haar(image_path: Path) -> EyeResult:
     cascade_path = _get_cascade_path("haarcascade_frontalface_default.xml")
     cascade = cv2.CascadeClassifier(cascade_path)
 
-    faces = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+    raw_faces = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+    valid_faces = []
+    margin = 2
+    if raw_faces is not None and len(raw_faces) > 0:
+        for (fx, fy, fw, fh) in raw_faces:
+            if fx >= margin and fy >= margin and (fx + fw) <= (w - margin) and (fy + fh) <= (h - margin):
+                valid_faces.append((fx, fy, fw, fh))
+    faces = valid_faces
     num_faces = len(faces)
 
     if num_faces == 0:
