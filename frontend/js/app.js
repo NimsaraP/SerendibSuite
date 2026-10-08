@@ -4131,6 +4131,7 @@ function initLightbox() {
     if (_lightboxWired) return;
     _lightboxWired = true;
 
+    const modal = document.getElementById("photo-lightbox");
     const closeBtn = document.getElementById("lightbox-btn-close");
     const backdrop = document.getElementById("lightbox-backdrop");
     const zoomBtn = document.getElementById("lightbox-btn-zoom");
@@ -4142,12 +4143,62 @@ function initLightbox() {
 
     if (closeBtn) closeBtn.addEventListener("click", closePhotoLightbox);
     if (backdrop) backdrop.addEventListener("click", closePhotoLightbox);
-    if (zoomBtn) zoomBtn.addEventListener("click", toggleLightboxZoom);
-    if (img) img.addEventListener("click", toggleLightboxZoom);
-    if (prevBtn) prevBtn.addEventListener("click", () => navigateLightbox(-1));
-    if (nextBtn) nextBtn.addEventListener("click", () => navigateLightbox(1));
-    if (keepBtn) keepBtn.addEventListener("click", () => applyLightboxDecision("keep"));
-    if (rejectBtn) rejectBtn.addEventListener("click", () => applyLightboxDecision("reject"));
+    if (zoomBtn) {
+        zoomBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            toggleLightboxZoom();
+        });
+    }
+    if (img) {
+        img.addEventListener("click", (e) => {
+            e.stopPropagation();
+            toggleLightboxZoom();
+        });
+    }
+    if (prevBtn) {
+        prevBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            navigateLightbox(-1);
+        });
+    }
+    if (nextBtn) {
+        nextBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            navigateLightbox(1);
+        });
+    }
+    if (keepBtn) {
+        keepBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            applyLightboxDecision("keep");
+        });
+    }
+    if (rejectBtn) {
+        rejectBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            applyLightboxDecision("reject");
+        });
+    }
+
+    // Dismiss when clicking anywhere outside the image
+    if (modal) {
+        modal.addEventListener("click", (e) => {
+            const currentImg = document.getElementById("lightbox-img");
+            const topbar = modal.querySelector(".lightbox-topbar");
+            const bottombar = modal.querySelector(".lightbox-bottombar");
+            const prev = document.getElementById("lightbox-prev");
+            const next = document.getElementById("lightbox-next");
+
+            if (currentImg && (e.target === currentImg || currentImg.contains(e.target))) return;
+            if (topbar && topbar.contains(e.target)) return;
+            if (bottombar && bottombar.contains(e.target)) return;
+            if (prev && (e.target === prev || prev.contains(e.target))) return;
+            if (next && (e.target === next || next.contains(e.target))) return;
+
+            // Clicked outside the image in the dark backdrop/stage -> close preview!
+            closePhotoLightbox();
+        });
+    }
 
     document.addEventListener("keydown", (e) => {
         const modal = document.getElementById("photo-lightbox");

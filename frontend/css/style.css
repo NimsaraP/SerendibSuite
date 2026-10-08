@@ -2844,6 +2844,7 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     padding: 10px 16px;
     position: relative;
     overflow: hidden;
+    cursor: pointer;
 }
 
 .lightbox-img-wrapper {
@@ -2853,6 +2854,7 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     align-items: center;
     justify-content: center;
     overflow: hidden;
+    cursor: pointer;
 }
 
 .lightbox-img {
