@@ -37,7 +37,7 @@ ALLOWED_MIME_TYPES = {
     "image/svg+xml",
     "image/svg",
 }
-ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".svg"}
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".jfif", ".pjpeg", ".pjp", ".png", ".webp", ".svg"}
 
 # Maximum upload size: 50 MB (supports full-res camera JPEGs/PNGs/WebP/SVG).
 # Files larger than this are rejected before being written to disk.
@@ -104,7 +104,7 @@ async def upload_photo(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
             detail=(
                 f"File extension '{suffix}' is not allowed. "
-                f"Use .jpg, .jpeg, .png, .webp, or .svg."
+                f"Use .jpg, .jpeg, .jfif, .png, .webp, or .svg."
             ),
         )
 
@@ -121,7 +121,7 @@ async def upload_photo(
                 status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
                 detail=(
                     f"Unsupported file type '{file.content_type}'. "
-                    f"Only .jpg, .jpeg, .png, .webp, and .svg images are accepted."
+                    f"Only .jpg, .jpeg, .jfif, .png, .webp, and .svg images are accepted."
                 ),
             )
 
@@ -197,7 +197,7 @@ async def upload_photo(
     # 7. Create the Photo database record.
     # ------------------------------------------------------------------
     stored_mime = raw_content_type or file.content_type
-    if suffix in (".jpg", ".jpeg"):
+    if suffix in (".jpg", ".jpeg", ".jfif", ".pjpeg", ".pjp"):
         stored_mime = "image/jpeg"
     elif suffix == ".png":
         stored_mime = "image/png"
@@ -487,9 +487,20 @@ def serve_photo_file(photo_id: int, db: Session = Depends(get_db)):
             detail="Image file not found on disk.",
         )
 
+    media_type = photo.mime_type
+    if not media_type or media_type in ("image/jfif", "image/jpg", "image/pjpeg"):
+        if abs_path.suffix.lower() in (".jpg", ".jpeg", ".jfif", ".pjpeg", ".pjp"):
+            media_type = "image/jpeg"
+        elif abs_path.suffix.lower() == ".png":
+            media_type = "image/png"
+        elif abs_path.suffix.lower() == ".svg":
+            media_type = "image/svg+xml"
+        elif abs_path.suffix.lower() == ".webp":
+            media_type = "image/webp"
+
     return FileResponse(
         path=str(abs_path),
-        media_type=photo.mime_type,
+        media_type=media_type,
         filename=photo.original_filename,
     )
 
