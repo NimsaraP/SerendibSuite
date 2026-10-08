@@ -9,16 +9,176 @@
     <meta name="description"
           content="SerendibSuite: a professional dashboard for event photographers to manage clients, bookings, events and AI-assisted photo curation." />
 
-    <!-- Stylesheet -->
-    <link rel="stylesheet" href="css/style.css" />
+    <!-- Stylesheet with cache-busting -->
+    <link rel="stylesheet" href="css/style.css?v=20261008_6" />
+
+    <style>
+        /* Essential layout for Top Navigation Bar */
+        .top-nav-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 32px;
+            border-bottom: 1px solid #2e3250;
+            background: rgba(15, 17, 23, 0.95);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 95;
+        }
+        .top-nav-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .btn-top-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #1a1d27;
+            color: #ffffff;
+            border: 1.5px solid #6c63ff;
+            padding: 7px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        .btn-top-back:hover:not(:disabled) {
+            background: #6c63ff;
+            color: #ffffff;
+            transform: translateX(-3px);
+            box-shadow: 0 4px 14px rgba(108, 99, 255, 0.4);
+        }
+        .btn-top-back:disabled, .btn-top-back.disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            border-color: #2e3250;
+            color: #8b90b8;
+            background: #151722;
+            box-shadow: none;
+            transform: none;
+        }
+        .btn-top-back .back-arrow {
+            font-size: 16px;
+            font-weight: 800;
+            line-height: 1;
+            color: #6c63ff;
+        }
+        .btn-top-back:hover:not(:disabled) .back-arrow {
+            color: #ffffff;
+        }
+        .btn-top-back .back-dest {
+            color: #8b90b8;
+            font-size: 12px;
+            font-weight: 500;
+            border-left: 1px solid rgba(255, 255, 255, 0.15);
+            padding-left: 8px;
+            margin-left: 4px;
+        }
+        .btn-top-back:hover:not(:disabled) .back-dest {
+            color: rgba(255, 255, 255, 0.9);
+        }
+        .breadcrumbs {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12.5px;
+            color: #8b90b8;
+        }
+        .bc-home { color: #4a4f72; }
+        .bc-divider { color: #4a4f72; font-size: 11px; }
+        .bc-current { color: #e8eaf6; font-weight: 600; }
+
+        /* Floating Scroll to Top Button */
+        .btn-scroll-top {
+            position: fixed !important;
+            bottom: 30px !important;
+            right: 30px !important;
+            z-index: 99999 !important;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            background: #1a1d27 !important;
+            color: #ffffff !important;
+            border: 2px solid #6c63ff !important;
+            padding: 11px 20px !important;
+            border-radius: 50px !important;
+            font-size: 13.5px !important;
+            font-weight: 700 !important;
+            cursor: pointer !important;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6), 0 0 15px rgba(108, 99, 255, 0.4) !important;
+            transition: all 0.25s ease !important;
+        }
+        .btn-scroll-top.visible {
+            display: flex !important;
+        }
+        .btn-scroll-top:hover {
+            background: #6c63ff !important;
+            color: #ffffff !important;
+            transform: translateY(-4px) !important;
+            box-shadow: 0 8px 25px rgba(108, 99, 255, 0.6) !important;
+        }
+        .btn-scroll-top .scroll-top-arrow {
+            font-size: 16px;
+            font-weight: 900;
+            color: #6c63ff;
+            transition: transform 0.2s ease;
+        }
+        .btn-scroll-top:hover .scroll-top-arrow {
+            color: #ffffff;
+            transform: translateY(-2px);
+        }
+
+        /* In-page bottom Scroll-to-Top Button */
+        .page-scroll-top-footer {
+            display: flex;
+            justify-content: center;
+            padding: 24px 0 32px;
+            width: 100%;
+        }
+        .btn-scroll-top-inline {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #1a1d27;
+            color: #8b90b8;
+            border: 1px solid #2e3250;
+            padding: 9px 22px;
+            border-radius: 24px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-scroll-top-inline:hover {
+            color: #ffffff;
+            border-color: #6c63ff;
+            background: #22263a;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(108, 99, 255, 0.25);
+        }
+        @media (max-width: 768px) {
+            .top-nav-bar { padding: 10px 16px; }
+            .btn-scroll-top { bottom: 20px !important; right: 20px !important; padding: 9px 15px !important; font-size: 12px !important; }
+        }
+    </style>
 </head>
 <body>
 
 <!-- Mobile Header Bar (Visible on mobile/tablets) -->
 <header class="mobile-topbar">
-    <button type="button" class="btn-mobile-menu" id="btn-mobile-menu" aria-label="Open Navigation">
-        <span>☰</span>
-    </button>
+    <div class="mobile-topbar-left">
+        <button type="button" class="btn-mobile-menu" id="btn-mobile-menu" aria-label="Open Navigation">
+            <span>☰</span>
+        </button>
+        <button type="button" class="btn-mobile-back" id="btn-mobile-back" aria-label="Go back to previous page" title="Back" style="display: none;">
+            <span>←</span>
+        </button>
+    </div>
     <div class="mobile-brand">
         Serendib<span>Suite</span>
     </div>
@@ -82,8 +242,8 @@
     <!-- API status indicator -->
     <div class="sidebar-footer">
         <div class="api-status">
-            <div class="status-dot" id="api-dot"></div>
-            <span id="api-status-text">Checking API…</span>
+            <div class="status-dot online" id="api-dot"></div>
+            <span id="api-status-text">Online &bull; <span style="color:#34d399;font-weight:600;">Database Connected</span></span>
         </div>
     </div>
 </aside>
@@ -93,6 +253,21 @@
      MAIN CONTENT
      ========================================================================= -->
 <main class="main-content">
+    <!-- Top Navigation & Global Back Bar -->
+    <div class="top-nav-bar" id="top-nav-bar">
+        <div class="top-nav-left">
+            <button type="button" class="btn-top-back disabled" id="btn-top-back" title="Go back to previous interface" disabled onclick="window.navigateBack()">
+                <span class="back-arrow">←</span>
+                <span class="back-label">Back</span>
+                <span class="back-dest" id="back-nav-dest"></span>
+            </button>
+            <div class="breadcrumbs" id="app-breadcrumbs">
+                <span class="bc-home">Workspace</span>
+                <span class="bc-divider">/</span>
+                <span class="bc-current" id="bc-current-title">Dashboard</span>
+            </div>
+        </div>
+    </div>
 
     <!-- -------------------------------------------------------------------
          DASHBOARD SECTION
@@ -140,6 +315,12 @@
             <div id="recent-events-list">
                 <div class="loading-msg">Loading events…</div>
             </div>
+        </div>
+
+        <div class="page-scroll-top-footer">
+            <button type="button" class="btn-scroll-top-inline" onclick="window.scrollToTop()">
+                ⬆ Back to Top
+            </button>
         </div>
     </section>
 
@@ -262,6 +443,12 @@
                 <div class="loading-msg">Loading…</div>
             </div>
         </div>
+
+        <div class="page-scroll-top-footer">
+            <button type="button" class="btn-scroll-top-inline" onclick="window.scrollToTop()">
+                ⬆ Back to Top
+            </button>
+        </div>
     </section>
 
 
@@ -275,10 +462,16 @@
         </div>
 
         <!-- Back button -->
-        <button class="btn-back" id="btn-back-to-events">← Back to Events</button>
+        <button class="btn-back" id="btn-back-to-events" onclick="window.navigateBack()">← Back to Events</button>
 
         <div id="event-detail-content">
             <div class="loading-msg">Loading event…</div>
+        </div>
+
+        <div class="page-scroll-top-footer">
+            <button type="button" class="btn-scroll-top-inline" onclick="window.scrollToTop()">
+                ⬆ Back to Top
+            </button>
         </div>
     </section>
 
@@ -343,6 +536,12 @@
             <div id="clients-list">
                 <div class="loading-msg">Loading…</div>
             </div>
+        </div>
+
+        <div class="page-scroll-top-footer">
+            <button type="button" class="btn-scroll-top-inline" onclick="window.scrollToTop()">
+                ⬆ Back to Top
+            </button>
         </div>
     </section>
 
@@ -449,6 +648,12 @@
                 <div class="loading-msg">Loading…</div>
             </div>
         </div>
+
+        <div class="page-scroll-top-footer">
+            <button type="button" class="btn-scroll-top-inline" onclick="window.scrollToTop()">
+                ⬆ Back to Top
+            </button>
+        </div>
     </section>
 
 
@@ -465,6 +670,12 @@
             <div id="all-photos-list">
                 <div class="loading-msg">Loading photos…</div>
             </div>
+        </div>
+
+        <div class="page-scroll-top-footer">
+            <button type="button" class="btn-scroll-top-inline" onclick="window.scrollToTop()">
+                ⬆ Back to Top
+            </button>
         </div>
     </section>
 
@@ -521,10 +732,68 @@
                 </div>
             </div>
         </div>
+
+        <div class="page-scroll-top-footer">
+            <button type="button" class="btn-scroll-top-inline" onclick="window.scrollToTop()">
+                ⬆ Back to Top
+            </button>
+        </div>
     </section>
 
+    <!-- Floating Scroll to Top Button -->
+    <button type="button" class="btn-scroll-top" id="btn-scroll-top" aria-label="Scroll to top" title="Scroll to top" onclick="window.scrollToTop()">
+        <span class="scroll-top-arrow">⬆</span>
+        <span class="scroll-top-label">Back to Top</span>
+    </button>
 </main>
 
+<!-- Global Scroll and Navigation Script -->
+<script>
+    // Universal Scroll to Top Function
+    window.scrollToTop = function () {
+        try {
+            window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+            document.documentElement.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+            document.body.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+        } catch (_) {}
+        const mc = document.querySelector('.main-content');
+        if (mc) {
+            try {
+                mc.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+            } catch (_) {
+                mc.scrollTop = 0;
+            }
+        }
+    };
+
+    // Scroll listener for Floating Top button
+    function updateScrollBtnState() {
+        const mc = document.querySelector('.main-content');
+        const mcScroll = mc ? mc.scrollTop : 0;
+        const winScroll = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+        const scrollVal = Math.max(mcScroll, winScroll);
+        const btn = document.getElementById('btn-scroll-top');
+        if (btn) {
+            if (scrollVal > 120) {
+                btn.style.display = 'flex';
+                btn.classList.add('visible');
+            } else {
+                btn.style.display = 'none';
+                btn.classList.remove('visible');
+            }
+        }
+    }
+
+    window.addEventListener('scroll', updateScrollBtnState, { passive: true });
+    document.addEventListener('scroll', updateScrollBtnState, { passive: true });
+    document.addEventListener('DOMContentLoaded', function () {
+        const mc = document.querySelector('.main-content');
+        if (mc) {
+            mc.addEventListener('scroll', updateScrollBtnState, { passive: true });
+        }
+        updateScrollBtnState();
+    });
+</script>
 
 <!-- =========================================================================
      SCRIPTS
@@ -535,7 +804,7 @@
     No bundler, no build step required.
 -->
 <script type="module">
-    import { getEvents } from "./js/api.js";
+    import { getEvents } from "./js/api.js?v=20261008_3";
 
     // -----------------------------------------------------------------------
     // API health check — shows green/red dot in the sidebar footer.
@@ -544,16 +813,26 @@
         const dot  = document.getElementById("api-dot");
         const text = document.getElementById("api-status-text");
         try {
-            const res = await fetch("http://127.0.0.1:8000/api/health");
-            if (res.ok) {
+            const [res, dbRes] = await Promise.all([
+                fetch("http://127.0.0.1:8000/api/health").catch(() => null),
+                fetch("http://127.0.0.1:8000/api/db-health").catch(() => null),
+            ]);
+            if (res && res.ok) {
                 dot.classList.add("online");
-                text.textContent = "API connected";
+                dot.classList.remove("offline");
+                const dbJson = dbRes && dbRes.ok ? await dbRes.json().catch(() => null) : null;
+                if (dbJson && dbJson.status === "ok") {
+                    text.innerHTML = `Online &bull; <span style="color:#34d399;font-weight:600;">Database Connected</span>`;
+                } else {
+                    text.innerHTML = `Online &bull; <span style="color:#f87171;font-weight:600;">Database Disconnected</span>`;
+                }
             } else {
                 throw new Error();
             }
         } catch {
             dot.classList.add("offline");
-            text.textContent = "API offline";
+            dot.classList.remove("online");
+            text.textContent = "Offline";
         }
     }
 
@@ -562,16 +841,8 @@
     setInterval(checkApiStatus, 30_000);
 </script>
 
-<!-- Main application logic (ES module) -->
-<script type="module" src="js/app.js"></script>
-
-<!-- Back button wired up after DOM is ready -->
-<script>
-    document.getElementById("btn-back-to-events").addEventListener("click", function () {
-        // Trigger the events nav link click so the nav highlight updates too.
-        document.querySelector('.nav-link[data-section="section-events"]').click();
-    });
-</script>
+<!-- Main application logic (ES module) with cache-busting -->
+<script type="module" src="js/app.js?v=20261008_6"></script>
 
 </body>
 </html>

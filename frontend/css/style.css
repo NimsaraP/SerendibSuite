@@ -50,6 +50,10 @@
    -------------------------------------------------------------------------- */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+html {
+    scroll-behavior: smooth;
+}
+
 body {
     font-family: "Inter", system-ui, sans-serif;
     background: var(--color-bg);
@@ -82,6 +86,7 @@ img { max-width: 100%; }
     margin-left: var(--sidebar-width);
     flex: 1;
     overflow-y: auto;
+    scroll-behavior: smooth;
     min-height: 100vh;
 }
 
@@ -151,6 +156,34 @@ img { max-width: 100%; }
 
 .btn-mobile-menu:hover {
     background: var(--color-surface-2);
+}
+
+.mobile-topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-mobile-back {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    color: var(--color-text);
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-sm);
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.btn-mobile-back:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    background: var(--color-surface-raised);
 }
 
 .mobile-brand {
@@ -2404,4 +2437,158 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     border-color: var(--color-accent) !important;
     background: var(--color-accent-soft) !important;
     box-shadow: 0 0 0 2px var(--color-accent) !important;
+}
+
+/* ==========================================================================
+   Top Navigation & Universal Back Navigation Bar
+   ========================================================================== */
+.top-nav-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 32px;
+    border-bottom: 1px solid var(--color-border);
+    background: rgba(15, 17, 23, 0.85);
+    backdrop-filter: blur(10px);
+    position: sticky;
+    top: 0;
+    z-index: 95;
+    transition: all var(--transition);
+}
+
+.top-nav-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.btn-top-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    padding: 6px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.btn-top-back:hover {
+    background: var(--color-surface-2);
+    border-color: var(--color-accent);
+    color: #ffffff;
+    box-shadow: 0 2px 10px rgba(108, 99, 255, 0.25);
+    transform: translateX(-2px);
+}
+
+.btn-top-back .back-arrow {
+    font-size: 15px;
+    line-height: 1;
+    color: var(--color-accent);
+    font-weight: 700;
+}
+
+.btn-top-back .back-dest {
+    color: var(--color-text-muted);
+    font-size: 12px;
+    border-left: 1px solid var(--color-border);
+    padding-left: 7px;
+    margin-left: 2px;
+}
+
+.breadcrumbs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--color-text-muted);
+}
+
+.bc-home {
+    color: var(--color-text-faint);
+}
+
+.bc-divider {
+    color: var(--color-text-faint);
+    font-size: 11px;
+}
+
+.bc-current {
+    color: var(--color-text);
+    font-weight: 600;
+}
+
+/* ==========================================================================
+   Floating Scroll-To-Top Button ("Back to Top")
+   ========================================================================== */
+.btn-scroll-top {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    z-index: 998;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(26, 29, 39, 0.92);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--color-border);
+    color: var(--color-text);
+    padding: 9px 16px;
+    border-radius: 30px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.04);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(14px);
+    transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.25s, border-color var(--transition), background var(--transition);
+}
+
+.btn-scroll-top.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.btn-scroll-top:hover {
+    background: var(--color-surface-2);
+    border-color: var(--color-accent);
+    color: #ffffff;
+    box-shadow: 0 6px 22px rgba(108, 99, 255, 0.3);
+    transform: translateY(-3px);
+}
+
+.btn-scroll-top:active {
+    transform: translateY(-1px);
+}
+
+.scroll-top-arrow {
+    font-size: 13px;
+    line-height: 1;
+    color: var(--color-accent);
+    font-weight: 700;
+    transition: transform 0.2s ease;
+}
+
+.btn-scroll-top:hover .scroll-top-arrow {
+    transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+    .top-nav-bar {
+        padding: 10px 16px;
+    }
+    .btn-scroll-top {
+        bottom: 20px;
+        right: 20px;
+        padding: 8px 13px;
+        font-size: 12px;
+    }
 }

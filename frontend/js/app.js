@@ -28,12 +28,157 @@ import {
 } from "./api.js";
 
 // ---------------------------------------------------------------------------
-// Navigation
+// Navigation & History Stack Management
 // ---------------------------------------------------------------------------
+const SECTION_TITLES = {
+    "section-dashboard": "Dashboard",
+    "section-clients": "Clients",
+    "section-bookings": "Bookings",
+    "section-events": "Events",
+    "section-photos": "All Photos",
+    "section-ai-insights": "AI Personalization",
+    "section-event-detail": "Event Detail",
+};
+
+let currentNavigationState = {
+    sectionId: "section-dashboard",
+    eventId: null,
+    title: "Dashboard",
+};
+
+const navigationHistory = [];
+
 const navLinks = document.querySelectorAll(".nav-link");
 const sections = document.querySelectorAll(".section");
 
-function showSection(sectionId) {
+function updateBackButtons() {
+    const topBackBtn = document.getElementById("btn-top-back");
+    const mobileBackBtn = document.getElementById("btn-mobile-back");
+    const backNavDest = document.getElementById("back-nav-dest");
+    const eventDetailBackBtn = document.getElementById("btn-back-to-events");
+
+    const hasHistory = navigationHistory.length > 0;
+    const isDashboard = currentNavigationState.sectionId === "section-dashboard";
+
+    if (hasHistory) {
+        const prev = navigationHistory[navigationHistory.length - 1];
+        const destLabel = prev.title || "Previous";
+
+        if (topBackBtn) {
+            topBackBtn.style.display = "inline-flex";
+            topBackBtn.removeAttribute("disabled");
+            topBackBtn.classList.remove("disabled");
+            if (backNavDest) backNavDest.textContent = destLabel;
+            topBackBtn.title = `Back to ${destLabel}`;
+        }
+        if (mobileBackBtn) {
+            mobileBackBtn.style.display = "inline-flex";
+            mobileBackBtn.removeAttribute("disabled");
+            mobileBackBtn.title = `Back to ${destLabel}`;
+        }
+        if (eventDetailBackBtn) {
+            eventDetailBackBtn.textContent = `← Back to ${destLabel}`;
+        }
+    } else {
+        if (isDashboard) {
+            if (topBackBtn) {
+                topBackBtn.style.display = "inline-flex";
+                topBackBtn.setAttribute("disabled", "true");
+                topBackBtn.classList.add("disabled");
+                if (backNavDest) backNavDest.textContent = "";
+                topBackBtn.title = "No previous page";
+            }
+            if (mobileBackBtn) {
+                mobileBackBtn.style.display = "none";
+            }
+        } else {
+            if (topBackBtn) {
+                topBackBtn.style.display = "inline-flex";
+                topBackBtn.removeAttribute("disabled");
+                topBackBtn.classList.remove("disabled");
+                if (backNavDest) backNavDest.textContent = "Dashboard";
+                topBackBtn.title = "Back to Dashboard";
+            }
+            if (mobileBackBtn) {
+                mobileBackBtn.style.display = "inline-flex";
+                mobileBackBtn.removeAttribute("disabled");
+                mobileBackBtn.title = "Back to Dashboard";
+            }
+            if (eventDetailBackBtn) {
+                eventDetailBackBtn.textContent = "← Back to Dashboard";
+            }
+        }
+    }
+
+    const bcCurrent = document.getElementById("bc-current-title");
+    if (bcCurrent) {
+        bcCurrent.textContent = currentNavigationState.title || "Dashboard";
+    }
+}
+
+function navigateBack() {
+    if (navigationHistory.length === 0) {
+        if (currentNavigationState.sectionId !== "section-dashboard") {
+            showSection("section-dashboard", { pushHistory: false });
+        }
+        return;
+    }
+
+    const prevState = navigationHistory.pop();
+    if (prevState.sectionId === "section-event-detail" && prevState.eventId) {
+        openEventDetail(prevState.eventId, false);
+    } else {
+        showSection(prevState.sectionId, {
+            pushHistory: false,
+            title: prevState.title,
+        });
+    }
+}
+
+function showSection(sectionId, options = {}) {
+    let pushHistory = true;
+    let eventId = null;
+    let title = null;
+
+    if (typeof options === "boolean") {
+        pushHistory = options;
+    } else if (typeof options === "object" && options !== null) {
+        if (options.pushHistory !== undefined) pushHistory = options.pushHistory;
+        if (options.eventId !== undefined) eventId = options.eventId;
+        if (options.title !== undefined) title = options.title;
+    }
+
+    const isDifferent = currentNavigationState.sectionId !== sectionId ||
+        (sectionId === "section-event-detail" && currentNavigationState.eventId !== eventId);
+
+    if (pushHistory && isDifferent) {
+        navigationHistory.push({
+            sectionId: currentNavigationState.sectionId,
+            eventId: currentNavigationState.eventId,
+            title: currentNavigationState.title,
+        });
+        if (navigationHistory.length > 50) {
+            navigationHistory.shift();
+        }
+
+        try {
+            const hash = sectionId.replace("section-", "");
+            window.history.pushState(
+                { sectionId, eventId, title },
+                "",
+                hash === "dashboard" ? window.location.pathname : `#${hash}`
+            );
+        } catch (_) {}
+    }
+
+    const resolvedTitle = title || (eventId ? `Event #${eventId}` : SECTION_TITLES[sectionId] || "Workspace");
+
+    currentNavigationState = {
+        sectionId,
+        eventId,
+        title: resolvedTitle,
+    };
+
     sections.forEach(s => s.classList.remove("active"));
     navLinks.forEach(l => l.classList.remove("active"));
 
@@ -43,12 +188,114 @@ function showSection(sectionId) {
     const activeLink = document.querySelector(`.nav-link[data-section="${sectionId}"]`);
     if (activeLink) activeLink.classList.add("active");
 
+    updateBackButtons();
+
+    // Scroll to top when entering a new interface
+    scrollToTop(false);
+
     if (sectionId === "section-dashboard") loadDashboard();
     if (sectionId === "section-events")   loadEvents();
     if (sectionId === "section-clients")  loadClients();
     if (sectionId === "section-bookings") loadBookings();
     if (sectionId === "section-photos")   loadAllPhotos();
     if (sectionId === "section-ai-insights") loadPersonalizationInsights();
+}
+
+// ---------------------------------------------------------------------------
+// Scroll To Top ("Back to Top")
+// ---------------------------------------------------------------------------
+function getScrollTop() {
+    const mc = document.querySelector(".main-content");
+    const mcTop = mc ? mc.scrollTop : 0;
+    const winTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+    return Math.max(mcTop, winTop);
+}
+
+function scrollToTop(smooth = true) {
+    const behavior = smooth ? "smooth" : "auto";
+    try {
+        window.scrollTo({ top: 0, left: 0, behavior });
+        document.documentElement.scrollTo({ top: 0, left: 0, behavior });
+        document.body.scrollTo({ top: 0, left: 0, behavior });
+    } catch (_) {}
+    const mc = document.querySelector(".main-content");
+    if (mc) {
+        try {
+            mc.scrollTo({ top: 0, left: 0, behavior });
+        } catch (_) {
+            mc.scrollTop = 0;
+        }
+    }
+}
+
+function initScrollToTop() {
+    const btnScrollTop = document.getElementById("btn-scroll-top");
+    if (!btnScrollTop) return;
+
+    function handleScroll() {
+        const top = getScrollTop();
+        if (top > 120) {
+            btnScrollTop.style.display = "flex";
+            btnScrollTop.classList.add("visible");
+        } else {
+            btnScrollTop.style.display = "none";
+            btnScrollTop.classList.remove("visible");
+        }
+    }
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    document.addEventListener("scroll", handleScroll, { passive: true });
+    const mc = document.querySelector(".main-content");
+    if (mc) {
+        mc.addEventListener("scroll", handleScroll, { passive: true });
+    }
+
+    btnScrollTop.addEventListener("click", (e) => {
+        e.preventDefault();
+        scrollToTop(true);
+    });
+
+    handleScroll();
+}
+
+// Expose globals for direct HTML / inline access
+window.navigateBack = navigateBack;
+window.scrollToTop = scrollToTop;
+window.showSection = showSection;
+window.openEventDetail = openEventDetail;
+
+function initBackNavigationListeners() {
+    const topBackBtn = document.getElementById("btn-top-back");
+    const mobileBackBtn = document.getElementById("btn-mobile-back");
+    const eventDetailBackBtn = document.getElementById("btn-back-to-events");
+
+    if (topBackBtn) topBackBtn.addEventListener("click", navigateBack);
+    if (mobileBackBtn) mobileBackBtn.addEventListener("click", navigateBack);
+    if (eventDetailBackBtn) eventDetailBackBtn.addEventListener("click", navigateBack);
+
+    // Browser back button support in Chrome
+    window.addEventListener("popstate", (e) => {
+        if (e.state && e.state.sectionId) {
+            if (e.state.sectionId === "section-event-detail" && e.state.eventId) {
+                openEventDetail(e.state.eventId, false);
+            } else {
+                showSection(e.state.sectionId, { pushHistory: false, title: e.state.title });
+            }
+        } else {
+            navigateBack();
+        }
+    });
+
+    // Keyboard shortcut (Alt + Left Arrow)
+    document.addEventListener("keydown", (e) => {
+        if (e.altKey && e.key === "ArrowLeft") {
+            const tag = (document.activeElement && document.activeElement.tagName) || "";
+            if (tag !== "INPUT" && tag !== "TEXTAREA" && tag !== "SELECT") {
+                e.preventDefault();
+                navigateBack();
+            }
+        }
+    });
 }
 
 // Mobile navigation drawer toggle
@@ -438,15 +685,23 @@ async function loadEvents() {
 // ---------------------------------------------------------------------------
 let _currentEventId = null;
 
-async function openEventDetail(eventId) {
+async function openEventDetail(eventId, pushHistory = true) {
     _currentEventId = eventId;
-    showSection("section-event-detail");
+    showSection("section-event-detail", {
+        pushHistory,
+        eventId,
+        title: `Event #${eventId}`,
+    });
 
     const container = document.getElementById("event-detail-content");
     container.innerHTML = `<div class="loading-msg">Loading event&#8230;</div>`;
 
     try {
         const ev = await getEvent(eventId);
+        if (ev && ev.name) {
+            currentNavigationState.title = `Event: ${ev.name}`;
+            updateBackButtons();
+        }
 
         let booking = null;
         let client  = null;
@@ -3113,18 +3368,14 @@ async function updateApiStatus() {
             if (mobileDot) mobileDot.className = "status-dot online";
 
             if (dbRes && dbRes.status === "ok") {
-                if (dbRes.is_xampp) {
-                    text.innerHTML = `Online &bull; <span style="color:#60a5fa;font-weight:600;" title="${escapeHtml(dbRes.message)}">XAMPP MySQL</span>`;
-                } else {
-                    text.innerHTML = `Online &bull; <span style="color:#34d399;font-weight:600;" title="${escapeHtml(dbRes.message)}">SQLite Standalone</span>`;
-                }
+                text.innerHTML = `Online &bull; <span style="color:#34d399;font-weight:600;" title="Database is connected and ready">Database Connected</span>`;
             } else {
-                text.textContent = "API Online";
+                text.innerHTML = `Online &bull; <span style="color:#f87171;font-weight:600;" title="Database connection issue">Database Disconnected</span>`;
             }
         } else {
             dot.className = "status-dot offline";
             if (mobileDot) mobileDot.className = "status-dot offline";
-            text.textContent = "API Offline";
+            text.textContent = "Offline";
         }
     } catch (_) {
         dot.className = "status-dot offline";
@@ -3137,6 +3388,8 @@ async function updateApiStatus() {
 // Bootstrap
 // ---------------------------------------------------------------------------
 wireCreateForms();
+initBackNavigationListeners();
+initScrollToTop();
 updateApiStatus();
 setInterval(updateApiStatus, 15000);
-showSection("section-dashboard");
+showSection("section-dashboard", { pushHistory: false });
