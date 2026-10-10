@@ -22,6 +22,13 @@ async function apiFetch(path, options = {}) {
         ? {}                                      // browser sets multipart boundary
         : { "Content-Type": "application/json" };
 
+    if (typeof document !== "undefined") {
+        const match = document.cookie.match(new RegExp('(^| )csrf_token=([^;]+)'));
+        if (match) {
+            headers["X-CSRF-Token"] = match[2];
+        }
+    }
+
     const response = await fetch(API_BASE + path, {
         headers,
         credentials: "include",
@@ -29,6 +36,11 @@ async function apiFetch(path, options = {}) {
     });
 
     if (!response.ok) {
+        if (response.status === 401 && !path.includes("/api/auth/login")) {
+            if (typeof window !== "undefined") {
+                window.location.href = "login.html";
+            }
+        }
         const err = await response.json().catch(() => ({}));
         throw new Error(formatApiError(err, response));
     }
@@ -105,6 +117,19 @@ export async function createClient(data) {
     });
 }
 
+export async function updateClient(id, data) {
+    return apiFetch(`/api/clients/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+    });
+}
+
+export async function deleteClient(id) {
+    return apiFetch(`/api/clients/${id}`, {
+        method: "DELETE",
+    });
+}
+
 // ---------------------------------------------------------------------------
 // Bookings
 // ---------------------------------------------------------------------------
@@ -123,6 +148,19 @@ export async function createBooking(data) {
     });
 }
 
+export async function updateBooking(id, data) {
+    return apiFetch(`/api/bookings/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+    });
+}
+
+export async function deleteBooking(id) {
+    return apiFetch(`/api/bookings/${id}`, {
+        method: "DELETE",
+    });
+}
+
 // ---------------------------------------------------------------------------
 // Events
 // ---------------------------------------------------------------------------
@@ -138,6 +176,19 @@ export async function createEvent(data) {
     return apiFetch("/api/events/", {
         method: "POST",
         body: JSON.stringify(data),
+    });
+}
+
+export async function updateEvent(id, data) {
+    return apiFetch(`/api/events/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+    });
+}
+
+export async function deleteEvent(id) {
+    return apiFetch(`/api/events/${id}`, {
+        method: "DELETE",
     });
 }
 

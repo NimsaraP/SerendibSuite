@@ -57,6 +57,38 @@ class BookingCreate(BaseModel):
         return value
 
 
+class BookingUpdate(BaseModel):
+    title: Optional[str] = None
+    booking_date: Optional[date] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
+
+    @field_validator("title")
+    @classmethod
+    def title_must_not_be_blank(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        stripped = value.strip()
+        if len(stripped) < 3:
+            raise ValueError("Booking title must be at least 3 characters long")
+        if len(stripped) > 200:
+            raise ValueError("Booking title cannot exceed 200 characters")
+        return stripped
+
+    @field_validator("status")
+    @classmethod
+    def status_must_be_valid(cls, value: Optional[str]) -> Optional[str]:
+        if value is not None and value not in BOOKING_STATUSES:
+            raise ValueError(f"status must be one of: {', '.join(BOOKING_STATUSES)}")
+        return value
+
+    @field_validator("notes")
+    @classmethod
+    def notes_length_check(cls, value: Optional[str]) -> Optional[str]:
+        if value and len(value) > 1000:
+            raise ValueError("Notes cannot exceed 1000 characters")
+        return value
+
 # =============================================================================
 # BookingRead — the shape of the JSON returned in API responses
 # =============================================================================

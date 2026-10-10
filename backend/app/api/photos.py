@@ -11,6 +11,10 @@ from backend.app.models.event import Event
 from backend.app.models.photo import Photo
 from backend.app.models.photo_analysis import PhotoAnalysis
 from backend.app.models.culling_override import CullingOverride
+from backend.app.models.booking import Booking
+from backend.app.models.client import Client
+from backend.app.models.user import User
+from backend.app.api.deps import get_current_photographer
 from backend.app.schemas.photo import (
     PhotoRead,
     AnalysisRead,
@@ -63,9 +67,10 @@ router = APIRouter(prefix="/api/photos", tags=["photos"])
     status_code=status.HTTP_201_CREATED,
 )
 async def upload_photo(
-    event_id: int = Form(...),          # sent as a form field alongside the file
-    file: UploadFile = File(...),       # the actual image file
+    event_id: int = Form(...),
+    file: UploadFile = File(...),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_photographer)
 ):
     """
     Upload a photo and attach it to an existing event.
@@ -87,7 +92,7 @@ async def upload_photo(
     # ------------------------------------------------------------------
     # 1. Verify the event exists.
     # ------------------------------------------------------------------
-    event = db.query(Event).filter(Event.id == event_id).first()
+    event = db.query(Event).join(Booking).join(Client).filter(Event.id == event_id, Client.user_id == current_user.id).first()
     if event is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -229,7 +234,7 @@ async def upload_photo(
     "/",
     response_model=List[PhotoRead],
 )
-def list_photos(event_id: Optional[int] = None, db: Session = Depends(get_db)):
+def list_photos(event_id: Optional[int] = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_photographer)):
     """
     Return photos, optionally filtered by event.
 
@@ -239,7 +244,7 @@ def list_photos(event_id: Optional[int] = None, db: Session = Depends(get_db)):
     If event_id is provided, we first verify the event exists.
     """
     if event_id is not None:
-        event = db.query(Event).filter(Event.id == event_id).first()
+        event = db.query(Event).join(Booking).join(Client).filter(Event.id == event_id, Client.user_id == current_user.id).first()
         if event is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -247,7 +252,7 @@ def list_photos(event_id: Optional[int] = None, db: Session = Depends(get_db)):
             )
         photos = db.query(Photo).filter(Photo.event_id == event_id).all()
     else:
-        photos = db.query(Photo).all()
+        photos = db.query(Photo).join(Event).join(Booking).join(Client).filter(Client.user_id == current_user.id).all()
 
     return photos
 
@@ -262,6 +267,7 @@ def list_photos(event_id: Optional[int] = None, db: Session = Depends(get_db)):
 def list_photos_with_analysis(
     event_id: Optional[int] = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_photographer)
 ):
     """
     Return photos for an event with their analysis embedded.
@@ -271,7 +277,7 @@ def list_photos_with_analysis(
     analysed) or an AnalysisSummary object.
     """
     if event_id is not None:
-        event = db.query(Event).filter(Event.id == event_id).first()
+        event = db.query(Event).join(Booking).join(Client).filter(Event.id == event_id, Client.user_id == current_user.id).first()
         if event is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -279,7 +285,7 @@ def list_photos_with_analysis(
             )
         photos = db.query(Photo).filter(Photo.event_id == event_id).all()
     else:
-        photos = db.query(Photo).all()
+        photos = db.query(Photo).join(Event).join(Booking).join(Client).filter(Client.user_id == current_user.id).all()
 
     result = []
     for photo in photos:
@@ -321,6 +327,7 @@ def get_burst_groups(
     event_id: int,
     max_distance: int = 10,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_photographer)
 ):
     """
     Cluster photos in an event into burst / near-duplicate groups using pHash.
@@ -333,7 +340,7 @@ def get_burst_groups(
 
     from ai.similarity import find_burst_groups
 
-    photos_with_analysis = list_photos_with_analysis(event_id=event_id, db=db)
+    photos_with_analysis = list_photos_with_analysis(event_id=event_id, db=db, current_user=current_user)
     # Convert Pydantic models to dicts for clustering
     photo_dicts = [p.model_dump() for p in photos_with_analysis]
 
@@ -359,7 +366,7 @@ def get_burst_groups(
 # GET /api/photos/personalization-insights
 # ---------------------------------------------------------------------------
 @router.get("/personalization-insights")
-def get_personalization_insights(db: Session = Depends(get_db)):
+def get_personalization_insights(db: Session = Depends(get_db), current_user: User = Depends(get_current_photographer)):
     """
     Returns learned preferences, adaptive blur threshold, and override statistics
     derived from the photographer's decision history.
@@ -370,7 +377,7 @@ def get_personalization_insights(db: Session = Depends(get_db)):
         sys.path.insert(0, project_root)
 
     from ai.personalization import compute_personalization_insights
-    return compute_personalization_insights(db)
+    return compute_personalization_insights(db, user_id=current_user.id)
 
 
 # ---------------------------------------------------------------------------
@@ -380,19 +387,20 @@ def get_personalization_insights(db: Session = Depends(get_db)):
 def export_event_xmp(
     event_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_photographer)
 ):
     """
     Generates and downloads a ZIP bundle of Adobe XMP sidecar files for all photos
     in the event. Can be directly imported into Adobe Lightroom or Photo Mechanic.
     """
-    event = db.query(Event).filter(Event.id == event_id).first()
+    event = db.query(Event).join(Booking).join(Client).filter(Event.id == event_id, Client.user_id == current_user.id).first()
     if event is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Event with id={event_id} does not exist.",
         )
 
-    photos_with_analysis = list_photos_with_analysis(event_id=event_id, db=db)
+    photos_with_analysis = list_photos_with_analysis(event_id=event_id, db=db, current_user=current_user)
     photo_dicts = [p.model_dump() for p in photos_with_analysis]
 
     from backend.app.api.export_xmp import create_xmp_zip_bundle
@@ -418,7 +426,7 @@ def export_event_xmp(
     "/{photo_id}",
     response_model=PhotoRead,
 )
-def get_photo(photo_id: int, db: Session = Depends(get_db)):
+def get_photo(photo_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_photographer)):
     """
     Return metadata for one photo by its primary key.
 
@@ -426,7 +434,7 @@ def get_photo(photo_id: int, db: Session = Depends(get_db)):
     Serving the actual image file will be added when the frontend
     photo gallery is implemented.
     """
-    photo = db.query(Photo).filter(Photo.id == photo_id).first()
+    photo = db.query(Photo).join(Event).join(Booking).join(Client).filter(Photo.id == photo_id, Client.user_id == current_user.id).first()
 
     if photo is None:
         raise HTTPException(
@@ -441,7 +449,7 @@ def get_photo(photo_id: int, db: Session = Depends(get_db)):
 # GET /api/photos/{photo_id}/file  — Serve the actual image binary
 # ---------------------------------------------------------------------------
 @router.get("/{photo_id}/file")
-def serve_photo_file(photo_id: int, db: Session = Depends(get_db)):
+def serve_photo_file(photo_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_photographer)):
     """
     Stream the stored image file for a given photo_id.
 
@@ -454,7 +462,7 @@ def serve_photo_file(photo_id: int, db: Session = Depends(get_db)):
 
     The browser uses this URL as the <img src="..."> for thumbnails.
     """
-    photo = db.query(Photo).filter(Photo.id == photo_id).first()
+    photo = db.query(Photo).join(Event).join(Booking).join(Client).filter(Photo.id == photo_id, Client.user_id == current_user.id).first()
     if photo is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -510,7 +518,7 @@ def serve_photo_file(photo_id: int, db: Session = Depends(get_db)):
     "/{photo_id}/analyse",
     response_model=AnalysisRead,
 )
-def analyse_photo(photo_id: int, db: Session = Depends(get_db)):
+def analyse_photo(photo_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_photographer)):
     """
     Run the AI / CV analysis pipeline on a previously uploaded photo.
 
@@ -530,7 +538,7 @@ def analyse_photo(photo_id: int, db: Session = Depends(get_db)):
     # ------------------------------------------------------------------
     # 1. Verify the Photo record exists.
     # ------------------------------------------------------------------
-    photo = db.query(Photo).filter(Photo.id == photo_id).first()
+    photo = db.query(Photo).join(Event).join(Booking).join(Client).filter(Photo.id == photo_id, Client.user_id == current_user.id).first()
     if photo is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -564,7 +572,7 @@ def analyse_photo(photo_id: int, db: Session = Depends(get_db)):
 
         from ai.pipeline import run_pipeline
         from ai.personalization import get_personalized_blur_threshold
-        personalized_threshold = get_personalized_blur_threshold(db)
+        personalized_threshold = get_personalized_blur_threshold(db, user_id=current_user.id)
         result = run_pipeline(abs_path, blur_threshold=personalized_threshold)
 
     except FileNotFoundError as exc:
@@ -640,6 +648,7 @@ def set_photographer_decision(
     photo_id: int,
     body: DecisionRequest,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_photographer)
 ):
     """
     Record the photographer's decision (keep / reject) for a photo.
@@ -652,7 +661,7 @@ def set_photographer_decision(
       - Safe to call multiple times: calling again changes the decision.
     """
     # 1. Photo must exist.
-    photo = db.query(Photo).filter(Photo.id == photo_id).first()
+    photo = db.query(Photo).join(Event).join(Booking).join(Client).filter(Photo.id == photo_id, Client.user_id == current_user.id).first()
     if photo is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

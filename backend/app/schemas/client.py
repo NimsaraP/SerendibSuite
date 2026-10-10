@@ -70,6 +70,54 @@ class ClientCreate(BaseModel):
         return value
 
 
+class ClientUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    notes: Optional[str] = None
+
+    @field_validator("name")
+    @classmethod
+    def name_must_not_be_blank(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        stripped = value.strip()
+        if len(stripped) < 2:
+            raise ValueError("Client name must be at least 2 characters long")
+        if len(stripped) > 100:
+            raise ValueError("Client name cannot exceed 100 characters")
+        if any(c.isdigit() for c in stripped):
+            raise ValueError("Client name cannot contain numbers.")
+        import re
+        if not re.match(r"^[A-Za-z\s\.\'\-]+$", stripped):
+            raise ValueError("Client name can only contain letters, spaces, hyphens, and apostrophes.")
+        return stripped
+
+    @field_validator("phone")
+    @classmethod
+    def phone_format_check(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        stripped = value.strip()
+        if not stripped:
+            return None
+        if any(c.isalpha() for c in stripped):
+            raise ValueError("Phone number cannot contain letters.")
+        import re
+        if not re.match(r"^\+?[0-9\s\-\(\)]+$", stripped):
+            raise ValueError("Phone number contains invalid characters.")
+        digits = [c for c in stripped if c.isdigit()]
+        if len(digits) < 9 or len(digits) > 15:
+            raise ValueError("Phone number must contain between 9 and 15 digits.")
+        return stripped
+
+    @field_validator("notes")
+    @classmethod
+    def notes_length_check(cls, value: Optional[str]) -> Optional[str]:
+        if value and len(value) > 1000:
+            raise ValueError("Notes cannot exceed 1000 characters")
+        return value
+
 # =============================================================================
 # ClientRead — the shape of the JSON returned in API responses
 # =============================================================================

@@ -60,6 +60,18 @@ def login(data: UserLogin, response: Response, db: Session = Depends(get_db)):
         max_age=7 * 24 * 3600
     )
     
+    # Set CSRF token cookie (Not HttpOnly so JS can read it)
+    import secrets
+    csrf_token = secrets.token_urlsafe(32)
+    response.set_cookie(
+        key="csrf_token",
+        value=csrf_token,
+        httponly=False,
+        samesite="lax",
+        secure=False,
+        max_age=7 * 24 * 3600
+    )
+    
     return {"message": "Login successful", "role": user.role}
 
 @router.post("/logout")

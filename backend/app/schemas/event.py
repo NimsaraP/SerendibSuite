@@ -58,6 +58,39 @@ class EventCreate(BaseModel):
         return value
 
 
+class EventUpdate(BaseModel):
+    name: Optional[str] = None
+    event_date: Optional[date] = None
+    event_time: Optional[str] = None
+    location: Optional[str] = None
+    status: Optional[str] = None
+
+    @field_validator("name")
+    @classmethod
+    def name_must_not_be_blank(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        stripped = value.strip()
+        if len(stripped) < 2:
+            raise ValueError("Event name must be at least 2 characters long")
+        if len(stripped) > 200:
+            raise ValueError("Event name cannot exceed 200 characters")
+        return stripped
+
+    @field_validator("location")
+    @classmethod
+    def location_length_check(cls, value: Optional[str]) -> Optional[str]:
+        if value and len(value) > 255:
+            raise ValueError("Location cannot exceed 255 characters")
+        return value
+
+    @field_validator("status")
+    @classmethod
+    def status_must_be_valid(cls, value: Optional[str]) -> Optional[str]:
+        if value is not None and value not in EVENT_STATUSES:
+            raise ValueError(f"status must be one of: {', '.join(EVENT_STATUSES)}")
+        return value
+
 # =============================================================================
 # EventRead — the shape of the JSON returned in API responses
 # =============================================================================
