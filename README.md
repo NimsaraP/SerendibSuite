@@ -10,45 +10,77 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![OpenCV](https://img.shields.io/badge/OpenCV-5.0-5C3EE8?style=flat-square&logo=opencv&logoColor=white)](https://opencv.org)
 [![Database](https://img.shields.io/badge/Database-SQLite%20%7C%20MySQL-orange?style=flat-square&logo=mysql&logoColor=white)](https://www.mysql.com)
-[![Status](https://img.shields.io/badge/Status-Gate%202%20%2B%20AI%20Milestones%20Complete-success?style=flat-square)]()
+[![Submission Status](https://img.shields.io/badge/Submission-Gate%203%20Final%20(65%25)-gold?style=flat-square&logo=github)](https://github.com/NimsaraP/SerendibSuite)
 [![Platform](https://img.shields.io/badge/Platform-Web%20%7C%20Mobile%20Responsive-brightgreen?style=flat-square)]()
 
-[Features](#-core-features) • [Architecture](#-system-architecture) • [AI Pipeline](#-ai-assisted-photo-analysis-pipeline) • [Quick Start](#-getting-started) • [API Reference](#-api-endpoints) • [Roadmap](#-roadmap)
+[Features](#-core-features) • [Feature Audit](#-feature-audit-fully-functional-vs-mocked--roadmap) • [AI Pipeline](#-ai-assisted-photo-analysis-pipeline) • [Quick Start](#-quick-start--setup-guide) • [API Reference](#-api-endpoints-summary)
 
 ---
 
 </div>
 
+## 📌 Submission Gate 3 — Final Submission Overview
+
+This repository represents the **Final Submission (Gate 3 — 65% of Total Score)** for the IntelliCon 2026 platform. It combines complete business lifecycle management with local computer vision inference, demonstrating how a specialized tool can eliminate post-shoot fatigue for event photographers in Sri Lanka and emerging markets.
+
+---
+
+## 🎯 Feature Audit: Fully Functional vs. Mocked / Roadmap
+
+As required by the **Gate 3 Rubric**, the matrix below explicitly details which capabilities are **100% functional and testable today**, versus features slated for the commercial SaaS phase:
+
+| Module / Feature | Status | Technical Implementation |
+| :--- | :---: | :--- |
+| **Client Management & Validation** | ✅ **100% Functional** | Full CRUD with real-time regex validation for client names, email addresses, and Sri Lankan (`+94` / `07X`) and international phone numbers. |
+| **Booking & Financial Tracking** | ✅ **100% Functional** | Track packages, prices, advance deposits paid, balance due, and booking status linked to clients. |
+| **Chronological Event Workspace** | ✅ **100% Functional** | Dedicated event workspaces with upcoming schedule prioritization, countdown badges, and photo statistics. |
+| **Multi-Format Photo Ingestion** | ✅ **100% Functional** | Ingestion for `.jpg`, `.jpeg`, `.jfif`, `.png`, `.webp`, and vector `.svg` with sanitized local-first storage. |
+| **Mathematical Blur Detection** | ✅ **100% Functional** | OpenCV Laplacian variance ($\text{Var}(\nabla^2 I)$) sharpness calculation; flags motion blur and soft focus below threshold 100. |
+| **Deep Face & Eye Blink Detection** | ✅ **100% Functional** | OpenCV YuNet ONNX neural network regressing 5 facial landmarks to detect blinks across portraits and group photos with automated Haar fallback. |
+| **Full-Face Boundary Validation** | ✅ **100% Functional** | Landmark coordinate boundary checks requiring eyes, nose, and mouth to be inside the frame, preventing false positives on macro eye/jewelry detail shots. |
+| **Burst & Duplicate Clustering** | ✅ **100% Functional** | 64-bit Perceptual Hash (pHash) clustering rapid-fire burst sequences (Hamming distance $\le 10$) and auto-recommending the sharpest hero frame. |
+| **Human-in-the-Loop Decisions** | ✅ **100% Functional** | Strict telemetry separation: AI provides recommendations (`KEEP`/`REVIEW`); photographer records definitive decisions (`Keep`/`Reject`). |
+| **Adaptive Personalization Engine** | ✅ **100% Functional** | Calculates human override ratios on AI reviews/keeps to provide studio-specific sensitivity insights. |
+| **Adobe Lightroom XMP Sidecar Export** | ✅ **100% Functional** | Generates industry-standard `.xmp` metadata sidecars in a single `.zip` download ready for instant Lightroom Classic ingestion. |
+| **Zero-Config Resilient Database** | ✅ **100% Functional** | Automatically runs on local SQLite (`serendibsuite.db`) or discovers local XAMPP MySQL without user configuration. |
+| **Fluid Mobile-First Responsive UI** | ✅ **100% Functional** | Dark studio aesthetic with 3-in-1 breadcrumb back-navigation, floating scroll-to-top, and fullscreen image modal. |
+| **Multi-Tenant Cloud Auth (JWT)** | ⏳ *Roadmap / Future* | Currently architected as a local studio workspace for zero-latency offline performance; JWT auth planned for SaaS cloud tier. |
+| **Client-Facing Web Proofing Gallery** | ⏳ *Roadmap / Future* | Client selection portal planned for v2; currently focused on photographer triage and Adobe Lightroom export. |
+| **Distributed Cloud Workers (Celery/Redis)** | ⏳ *Roadmap / Future* | Synchronous/multithreaded local execution currently active; Redis queue planned for multi-user server deployment. |
+| **Native Mobile App (Android APK / iOS)** | ⏳ *Roadmap / Future* | 100% responsive PWA-ready web application currently live across desktop, tablet, and mobile browsers. |
+
+---
+
 ## 📖 Executive Summary & Problem Domain
 
-> **One-Line Problem:** Solo and small-team event photographers in Sri Lanka lose hours per event to disconnected booking tools and manual photo culling, with no unified, AI-assisted workflow built for their scale.
+> **One-Line Problem:** Solo and small-team event photographers in Sri Lanka lose 3 to 6 hours per event manually sorting thousands of raw photos, using disconnected WhatsApp threads and spreadsheets with no unified, affordable AI tool built for their scale.
 
 ### The Pain Point
-Event photographers covering weddings, corporate galas, and conferences typically run their client bookings through WhatsApp threads, manual spreadsheets, and external hard drives. After a shoot, they spend **3 to 6 hours** manually sorting through 100–300+ raw frames before creative editing can even begin. 
+Event photographers covering weddings, corporate galas, and parties capture 1,000–3,000 photos per shoot. Afterward, they spend hours manually checking focus and open eyes before creative editing can begin. Foreign AI tools cost \$15–\$30/month, require heavy GPU cloud uploads, and ignore studio booking management.
 
 **SerendibSuite** solves this by unifying:
 1. **Client & Booking Management** with strict field validations.
 2. **Event Workspaces** with smart chronological scheduling.
-3. **AI-Assisted Culling Pipeline** detecting blur, closed eyes, and burst duplicates.
+3. **Local AI Culling Engine** detecting blur, closed eyes, and burst duplicates offline.
 4. **Adaptive Personalization** that learns from photographer overrides.
-5. **Native Adobe XMP Export** for seamless integration with Adobe Lightroom & Photo Mechanic.
+5. **Native Adobe XMP Export** for seamless integration with Adobe Lightroom Classic.
 
 ---
 
 ## 🚀 Complete 3-Week Workflow
 
 ```text
-  [ Create Client ]
+  [ Create Client ] (Name, Email, Phone regex validation)
           ↓
-  [ Create Booking ]
+  [ Create Booking ] (Package, Price, Advance deposit, Status)
           ↓
   [ Event Workspace ] (Chronological scheduling & Closest Upcoming Events)
           ↓
-  [ Local Photo Ingestion ] (Fast local-first storage, no upload bottlenecks)
+  [ Local Photo Ingestion ] (Fast local-first storage, no upload bandwidth)
           ↓
   [ Multi-Stage AI Analysis ]
     ├── Laplacian Variance (Sharpness / Blur detection)
-    ├── OpenCV YuNet + Haar Cascade (Face & Closed-Eye detection)
+    ├── OpenCV YuNet + Landmark Boundary Check (Full Face & Eye blink detection)
     └── Perceptual Hashing (Visual similarity & burst clustering)
           ↓
   [ Burst & Duplicate Grouping ] (Auto-recommends best sharp frame)
@@ -61,23 +93,6 @@ Event photographers covering weddings, corporate galas, and conferences typicall
           ↓
   [ Adobe XMP Sidecar Export ] (One-click zip export for Lightroom Classic)
 ```
-
----
-
-## ✨ Core Features
-
-| Feature | Description | Status |
-| :--- | :--- | :---: |
-| **Client Management** | Comprehensive client registry with email, phone, and name strict validation rules. | ✅ Active |
-| **Booking Tracking** | Track packages, event dates, pricing, advance deposits, and status. | ✅ Active |
-| **Event Workspace** | Dedicated workspace per shoot with event time, venue location, and photo stats. | ✅ Active |
-| **Closest Upcoming Events** | Dashboard prioritizes imminent shoots with chronological badges and times. | ✅ Active |
-| **Smart AI Culling** | Independent blur scoring, face landmark detection, and eye openness verification. | ✅ Active |
-| **Burst Detection** | Clusters rapid-fire burst sequences and automatically flags duplicate frames. | ✅ Active |
-| **Personalization Engine** | Analyzes photographer overrides to learn personal curation preferences. | ✅ Active |
-| **Lightroom XMP Export** | Generates industry-standard `.xmp` metadata sidecars in a downloadable `.zip`. | ✅ Active |
-| **Universal Responsive UI** | Auto-scaling fluid layout supporting 4K desktop, laptops, tablets, and smartphones. | ✅ Active |
-| **Zero-Config DB Fallback** | Seamlessly runs with local SQLite (`serendibsuite.db`) or MySQL/MariaDB. | ✅ Active |
 
 ---
 
@@ -116,7 +131,9 @@ $$\text{Score} = \text{Var}(\nabla^2 I)$$
 Images scoring below the configurable threshold (default `100.0`) are automatically flagged as blurry.
 
 ### 2. Deep Face & Eye Landmark Detection
-Employs modern **OpenCV YuNet ONNX** with automated fallback to Haar cascades. Accurately determines if subjects in portraits have closed or squinting eyes during critical moments.
+Employs modern **OpenCV YuNet ONNX** neural network. Regresses 5 key facial landmarks (eyes, nose, mouth) and validates:
+- **Full-Face Boundary Check:** All 5 landmarks must be within image coordinates, preventing tightly cropped macro eye or jewelry shots from falsely triggering face status.
+- **Eye Openness Calculation:** Evaluates eye patch gradients and pixel intensity ratios to flag closed or blinking eyes.
 
 ### 3. Perceptual Duplicate Grouping
 Generates 64-bit perceptual hashes (`pHash`). Successive frames in burst shots with a Hamming distance $\le 10$ are clustered, automatically picking the single sharpest frame as the hero recommendation.
@@ -159,22 +176,24 @@ Generates 64-bit perceptual hashes (`pHash`). Successive frames in burst shots w
 SerendibSuite/
 ├── ai/                              # Computer Vision & Intelligence
 │   ├── blur_detection.py            # Laplacian variance sharpness
-│   ├── eye_detection.py             # YuNet & Haar cascade eye detector
+│   ├── eye_detection.py             # YuNet & full-face boundary validator
 │   ├── similarity.py                # Perceptual hash & burst clustering
 │   ├── personalization.py           # Adaptive override learning engine
-│   └── models/                      # Lightweight onnx and xml models
+│   └── models/                      # Lightweight ONNX models (< 500 KB)
 ├── backend/                         # FastAPI Application Backend
 │   ├── app/
 │   │   ├── api/                     # REST Endpoints (Clients, Bookings, Events, Photos, XMP)
-│   │   ├── database/                # Database engine & session factories
+│   │   ├── database/                # Database engine with SQLite/MySQL fallback
 │   │   ├── models/                  # SQLAlchemy ORM Models
 │   │   └── schemas/                 # Strict Pydantic validation schemas
 │   └── requirements.txt             # Python dependencies
 ├── frontend/                        # Client-Side Application
-│   ├── css/style.css                # Fluid responsive design (Dark theme)
+│   ├── css/style.css                # Fluid responsive design (Dark studio theme)
 │   ├── js/app.js                    # SPA application state & view controller
 │   ├── js/api.js                    # Fetch API client wrapper
 │   └── index.html                   # Semantic HTML5 shell
+├── docs/                            # Technical Architecture & Specifications
+│   └── architecture.md              # Detailed architecture documentation
 ├── storage/                         # Local-first media store & SQLite DB
 ├── populate_10_photos.py            # Showcase photo population script
 └── README.md                        # Documentation
@@ -182,7 +201,7 @@ SerendibSuite/
 
 ---
 
-## ⚡ Getting Started
+## ⚡ Quick Start & Setup Guide
 
 ### Prerequisites
 * **Python 3.10+**
@@ -212,15 +231,15 @@ pip install -r backend/requirements.txt
 
 ---
 
-### 2. Running the Servers
+### 2. Running the Application
 
 Open two terminal windows:
 
 #### Terminal 1 — Backend API Server
 ```powershell
-python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
-> 📍 API will be active at: `http://127.0.0.1:8000`  
+> 📍 API active at: `http://127.0.0.1:8000`  
 > 📚 Interactive Swagger Docs: `http://127.0.0.1:8000/docs`
 
 #### Terminal 2 — Frontend Web Server
@@ -233,10 +252,10 @@ python -m http.server 5500 --directory frontend
 
 ### 3. Showcase & Test Data Setup (Optional)
 
-To immediately populate the system with **13 upcoming events** and **10 curated showcase photos** (8 real portraits + 2 detail shots):
+To immediately populate the system with realistic upcoming events, clients, bookings, and showcase event photos:
 
 ```powershell
-# Seed demo clients, bookings, and realistic scheduled events
+# Seed demo clients, bookings, and scheduled events
 python update_events_schedule.py
 
 # Populate showcase photo set
@@ -245,13 +264,13 @@ python populate_10_photos.py
 
 ---
 
-## 📡 API Endpoints
+## 📡 API Endpoints Summary
 
 <details>
-<summary><b>Click to expand full API specification</b></summary>
+<summary><b>Click to expand full REST API specification</b></summary>
 
 ### 👤 Clients
-* `POST /api/clients` — Create a new client (with name, email, phone validations)
+* `POST /api/clients` — Create a new client (with strict name, email, phone validations)
 * `GET  /api/clients` — Retrieve all registered clients
 
 ### 📅 Bookings
@@ -275,31 +294,9 @@ python populate_10_photos.py
 
 ---
 
-## 🗺️ Roadmap & Milestones
-
-- [x] **Milestone 1 — Core Foundation**
-  - FastAPI backend, database schemas, local storage, API routing.
-- [x] **Milestone 2 — Photographer Workflow**
-  - End-to-end client $\to$ booking $\to$ event $\to$ photo upload pipeline.
-  - Multi-stage CV analysis (Laplacian Blur + YuNet/Haar Face & Eye detection).
-  - Batch photo analysis and separate AI recommendation vs Human decision.
-- [x] **Milestone 3 — Advanced Workflow Extensions**
-  - Perceptual hash burst/duplicate grouping.
-  - Personalization engine tracking decision overrides.
-  - Adobe XMP sidecar zip export for Lightroom Classic.
-  - Strict input validations (Names, Emails, Sri Lankan & International Phone Numbers).
-  - 100% fluid mobile-first responsive scaling across all screen sizes.
-- [ ] **Milestone 4 — Multi-Tenancy & SaaS Infrastructure (Planned)**
-  - JWT Authentication & photographer registration.
-  - Tenant database isolation.
-  - Client-facing preview gallery and selection portal.
-  - Background asynchronous task workers (Celery / Redis).
-
----
-
 ## 📄 License & Intellectual Property
 
-This project is developed for the **IntelliCon** initiative. All rights reserved. Private development.
+This project is developed for the **IntelliCon 2026** competition. All rights reserved. Private development.
 
 <div align="center">
 <sub>Crafted with passion for Sri Lankan Event Photographers 🇱🇰</sub>
