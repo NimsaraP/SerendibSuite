@@ -11,9 +11,10 @@
 [![OpenCV](https://img.shields.io/badge/OpenCV-5.0-5C3EE8?style=flat-square&logo=opencv&logoColor=white)](https://opencv.org)
 [![Database](https://img.shields.io/badge/Database-SQLite%20%7C%20MySQL-orange?style=flat-square&logo=mysql&logoColor=white)](https://www.mysql.com)
 [![Submission Status](https://img.shields.io/badge/Submission-Gate%203%20Final%20(65%25)-gold?style=flat-square&logo=github)](https://github.com/NimsaraP/SerendibSuite)
+[![Live Frontend Demo](https://img.shields.io/badge/Live%20Demo-Netlify-00C7B7?style=flat-square&logo=netlify&logoColor=white)](https://serendibsuite.netlify.app/)
 [![Platform](https://img.shields.io/badge/Platform-Web%20%7C%20Mobile%20Responsive-brightgreen?style=flat-square)]()
 
-[Features](#-core-features) • [Feature Audit](#-feature-audit-fully-functional-vs-mocked--roadmap) • [AI Pipeline](#-ai-assisted-photo-analysis-pipeline) • [Quick Start](#-quick-start--setup-guide) • [API Reference](#-api-endpoints-summary)
+[Live Frontend Demo](https://serendibsuite.netlify.app/) • [Features](#-core-features) • [Feature Audit](#-feature-audit-fully-functional-vs-mocked--roadmap) • [AI Pipeline](#-ai-assisted-photo-analysis-pipeline) • [Quick Start](#-quick-start--setup-guide) • [API Reference](#-api-endpoints-summary)
 
 ---
 
@@ -23,11 +24,16 @@
 
 This repository represents the **Final Submission (Gate 3 — 65% of Total Score)** for the IntelliCon 2026 platform. It combines complete business lifecycle management with local computer vision inference, demonstrating how a specialized tool can eliminate post-shoot fatigue for event photographers in Sri Lanka and emerging markets.
 
+> 🌐 **Live Frontend Deployment:** [https://serendibsuite.netlify.app/](https://serendibsuite.netlify.app/)  
+> *Note:* The Netlify deployment showcases the complete client-side user experience, fluid mobile-responsive UI, dashboard analytics, client management forms, and studio workflow. To run the full-stack system with local Computer Vision AI inference (OpenCV blur scoring, deep face/eye landmark analysis, and Lightroom XMP sidecar generation), clone the repository and run the local FastAPI backend as detailed in the [Quick Start Guide](#-quick-start--setup-guide).
+
 ---
 
 ## 🎯 Feature Audit: Fully Functional vs. Mocked / Roadmap
 
-As required by the **Gate 3 Rubric**, the matrix below explicitly details which capabilities are **100% functional and testable today**, versus features slated for the commercial SaaS phase:
+As required by the **Gate 3 Rubric**, the matrix below explicitly details which capabilities are **100% functional and testable today**, alongside our planned commercial SaaS extensions:
+
+### ✅ Core Capabilities (100% Fully Functional & Verifiable)
 
 | Module / Feature | Status | Technical Implementation |
 | :--- | :---: | :--- |
@@ -44,10 +50,15 @@ As required by the **Gate 3 Rubric**, the matrix below explicitly details which 
 | **Adobe Lightroom XMP Sidecar Export** | ✅ **100% Functional** | Generates industry-standard `.xmp` metadata sidecars in a single `.zip` download ready for instant Lightroom Classic ingestion. |
 | **Zero-Config Resilient Database** | ✅ **100% Functional** | Automatically runs on local SQLite (`serendibsuite.db`) or discovers local XAMPP MySQL without user configuration. |
 | **Fluid Mobile-First Responsive UI** | ✅ **100% Functional** | Dark studio aesthetic with 3-in-1 breadcrumb back-navigation, floating scroll-to-top, and fullscreen image modal. |
-| **Multi-Tenant Cloud Auth (JWT)** | ⏳ *Roadmap / Future* | Currently architected as a local studio workspace for zero-latency offline performance; JWT auth planned for SaaS cloud tier. |
-| **Client-Facing Web Proofing Gallery** | ⏳ *Roadmap / Future* | Client selection portal planned for v2; currently focused on photographer triage and Adobe Lightroom export. |
-| **Distributed Cloud Workers (Celery/Redis)** | ⏳ *Roadmap / Future* | Synchronous/multithreaded local execution currently active; Redis queue planned for multi-user server deployment. |
-| **Native Mobile App (Android APK / iOS)** | ⏳ *Roadmap / Future* | 100% responsive PWA-ready web application currently live across desktop, tablet, and mobile browsers. |
+
+### 🚀 Future Commercial SaaS Expansion Roadmap (Planned v2)
+
+| Roadmap Feature | Phase | Architectural Vision |
+| :--- | :---: | :--- |
+| **Multi-Tenant Cloud Auth (JWT)** | ⏳ *SaaS Tier* | Currently architected as a local studio workspace for zero-latency offline performance; JWT auth planned for multi-user cloud tier. |
+| **Client-Facing Web Proofing Gallery** | ⏳ *SaaS Tier* | Client selection portal planned for v2; currently focused on photographer triage and Adobe Lightroom export. |
+| **Distributed Cloud Workers (Celery/Redis)** | ⏳ *SaaS Tier* | Synchronous/multithreaded local execution currently active; Redis queue planned for multi-user server deployment. |
+| **Native Mobile App (Android APK / iOS)** | ⏳ *SaaS Tier* | 100% responsive PWA-ready web application currently live across desktop, tablet, and mobile browsers. |
 
 ---
 
