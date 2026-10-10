@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - SerendibSuite</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: #0f1117;
+            margin: 0;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        .auth-container {
+            background: #1a1d27;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+            width: 100%;
+            max-width: 400px;
+            border: 1px solid #2e3250;
+        }
+        .auth-brand {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffffff;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .auth-brand span {
+            color: #6c63ff;
+        }
+        .create-form label {
+            margin-bottom: 16px;
+        }
+        .create-form-actions {
+            margin-top: 24px;
+        }
+        .auth-links {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #8b90b8;
+        }
+        .auth-links a {
+            color: #6c63ff;
+            text-decoration: none;
+        }
+        .auth-links a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+<div class="auth-container">
+    <div class="auth-brand">Serendib<span>Suite</span></div>
+    
+    <form id="form-login" class="create-form" novalidate>
+        <label>
+            Email
+            <input type="email" id="login-email" required placeholder="name@example.com" />
+        </label>
+        <label>
+            Password
+            <input type="password" id="login-password" required placeholder="••••••••" />
+        </label>
+        
+        <div class="form-error" id="login-error" hidden></div>
+        
+        <div class="create-form-actions">
+            <button type="submit" class="btn-open" style="width:100%">Sign In</button>
+        </div>
+    </form>
+    
+    <div class="auth-links">
+        Don't have an account? <a href="register.html">Register here</a>
+    </div>
+</div>
+
+<script type="module">
+    import { loginUser } from './js/api.js';
+    
+    document.getElementById("form-login").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const email = document.getElementById("login-email").value;
+        const password = document.getElementById("login-password").value;
+        const errDiv = document.getElementById("login-error");
+        
+        try {
+            await loginUser({ email, password });
+            window.location.href = "index.html";
+        } catch (error) {
+            errDiv.textContent = error.message;
+            errDiv.hidden = false;
+        }
+    });
+</script>
+
+</body>
+</html>

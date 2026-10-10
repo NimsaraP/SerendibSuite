@@ -39,6 +39,8 @@ app.add_middleware(
 
 # Register feature routers.
 # include_router() mounts all routes from the feature files into the main app.
+from backend.app.api.auth import router as auth_router
+app.include_router(auth_router)
 app.include_router(clients_router)
 app.include_router(bookings_router)
 app.include_router(events_router)

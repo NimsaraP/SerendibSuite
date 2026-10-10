@@ -24,6 +24,7 @@ async function apiFetch(path, options = {}) {
 
     const response = await fetch(API_BASE + path, {
         headers,
+        credentials: "include",
         ...options,
     });
 
@@ -55,6 +56,35 @@ function formatApiError(err, response) {
         if (parts.length) return parts.join("; ");
     }
     return `HTTP ${response.status}: ${response.statusText}`;
+}
+
+// ---------------------------------------------------------------------------
+// Authentication
+// ---------------------------------------------------------------------------
+export async function registerUser(data) {
+    return apiFetch("/api/auth/register", {
+        method: "POST",
+        body: JSON.stringify(data),
+    });
+}
+
+export async function loginUser(data) {
+    return apiFetch("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify(data),
+    });
+}
+
+export async function logoutUser() {
+    return apiFetch("/api/auth/logout", {
+        method: "POST",
+    });
+}
+
+export async function getCurrentUser() {
+    return apiFetch("/api/auth/me", {
+        method: "GET",
+    });
 }
 
 // ---------------------------------------------------------------------------

@@ -24,6 +24,11 @@ class Client(Base):
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
+    # Optional foreign key if the client has their own login account
+    login_user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+
     name: Mapped[str] = mapped_column(String(100), nullable=False)
 
     # Clients must have an email so we can contact them.
@@ -41,7 +46,10 @@ class Client(Base):
     )
 
     # Many-to-one: this Client belongs to one User.
-    user: Mapped["User"] = relationship("User", back_populates="clients")
+    user: Mapped["User"] = relationship("User", back_populates="clients", foreign_keys=[user_id])
+    
+    # Many-to-one: this Client record links to an authenticated client account
+    login_user: Mapped[Optional["User"]] = relationship("User", back_populates="client_profile", foreign_keys=[login_user_id])
 
     # One-to-many: this Client can have many Bookings.
     bookings: Mapped[list["Booking"]] = relationship("Booking", back_populates="client")
