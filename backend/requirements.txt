@@ -1,12 +1,11 @@
-fastapi==0.115.0
-uvicorn==0.30.6
-sqlalchemy==2.0.35
-pymysql==1.1.1
-python-dotenv==1.0.1
-email-validator==2.2.0
-python-multipart==0.0.9
+fastapi>=0.110.0
+uvicorn>=0.28.0
+sqlalchemy>=2.0.0
+pymysql>=1.1.0
+python-dotenv>=1.0.0
+email-validator>=2.0.0
+python-multipart>=0.0.9
 # AI / Computer Vision dependencies
-opencv-contrib-python==5.0.0.93
-mediapipe==0.10.33
-ImageHash==4.3.1
-Pillow==10.4.0
+opencv-python>=4.8.0
+ImageHash>=4.3.0
+Pillow>=10.0.0
