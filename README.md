@@ -217,15 +217,24 @@ pip install -r backend/requirements.txt
 Open two terminal windows:
 
 #### Terminal 1 — Backend API Server
+Ensure your virtual environment is activated, or use the explicit path:
 ```powershell
-python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+# On Windows
+.venv\Scripts\python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+
+# On macOS/Linux
+.venv/bin/python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 > 📍 API will be active at: `http://127.0.0.1:8000`  
 > 📚 Interactive Swagger Docs: `http://127.0.0.1:8000/docs`
 
 #### Terminal 2 — Frontend Web Server
 ```powershell
-python -m http.server 5500 --directory frontend
+# On Windows
+.venv\Scripts\python -m http.server 5500 --directory frontend
+
+# On macOS/Linux
+.venv/bin/python -m http.server 5500 --directory frontend
 ```
 > 🌐 Open your browser and navigate to: **`http://127.0.0.1:5500`**
 
@@ -236,11 +245,13 @@ python -m http.server 5500 --directory frontend
 To immediately populate the system with **13 upcoming events** and **10 curated showcase photos** (8 real portraits + 2 detail shots):
 
 ```powershell
-# Seed demo clients, bookings, and realistic scheduled events
-python update_events_schedule.py
+# On Windows
+.venv\Scripts\python update_events_schedule.py
+.venv\Scripts\python populate_10_photos.py
 
-# Populate showcase photo set
-python populate_10_photos.py
+# On macOS/Linux
+.venv/bin/python update_events_schedule.py
+.venv/bin/python populate_10_photos.py
 ```
 
 ---
@@ -275,6 +286,11 @@ python populate_10_photos.py
 
 ---
 
+## 🛑 Limitations
+* The current AI models run synchronously in the web request cycle, which may block the API for larger batch uploads.
+* Local storage mechanism only supports a single node (not distributed).
+* Authentication and multi-tenancy are not yet supported.
+
 ## 🗺️ Roadmap & Milestones
 
 - [x] **Milestone 1 — Core Foundation**
@@ -283,12 +299,13 @@ python populate_10_photos.py
   - End-to-end client $\to$ booking $\to$ event $\to$ photo upload pipeline.
   - Multi-stage CV analysis (Laplacian Blur + YuNet/Haar Face & Eye detection).
   - Batch photo analysis and separate AI recommendation vs Human decision.
-- [x] **Milestone 3 — Advanced Workflow Extensions**
+- [x] **Milestone 3 — Advanced Workflow Extensions (Gate 3 Completed)**
   - Perceptual hash burst/duplicate grouping.
   - Personalization engine tracking decision overrides.
   - Adobe XMP sidecar zip export for Lightroom Classic.
   - Strict input validations (Names, Emails, Sri Lankan & International Phone Numbers).
   - 100% fluid mobile-first responsive scaling across all screen sizes.
+  - Full client, booking, and event UI forms.
 - [ ] **Milestone 4 — Multi-Tenancy & SaaS Infrastructure (Planned)**
   - JWT Authentication & photographer registration.
   - Tenant database isolation.
