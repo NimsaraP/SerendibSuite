@@ -211,10 +211,14 @@ function showSection(sectionId, options = {}) {
     navLinks.forEach(l => l.classList.remove("active"));
 
     const target = document.getElementById(sectionId);
-    if (target) target.classList.add("active");
+    if (target) {
+        target.classList.add("active");
+        target.classList.remove("section-enter");
+        void target.offsetWidth;
+        target.classList.add("section-enter");
+    }
 
-    const activeLink = document.querySelector(`.nav-link[data-section="${sectionId}"]`);
-    if (activeLink) activeLink.classList.add("active");
+    document.querySelectorAll(`.nav-link[data-section="${sectionId}"]`).forEach(l => l.classList.add("active"));
 
     updateBackButtons();
 
@@ -326,7 +330,8 @@ function initBackNavigationListeners() {
     });
 }
 
-// Mobile navigation drawer toggle
+// Mobile drawer removed - clean up any stale body classes
+document.body.classList.remove("sidebar-open");
 const mobileMenuBtn = document.getElementById("btn-mobile-menu");
 const sidebarCloseBtn = document.getElementById("btn-sidebar-close");
 const sidebarBackdrop = document.getElementById("sidebar-backdrop");
@@ -335,7 +340,6 @@ const sidebar = document.getElementById("sidebar");
 function openSidebar() {
     if (sidebar) sidebar.classList.add("open");
     if (sidebarBackdrop) sidebarBackdrop.classList.add("open");
-    document.body.classList.add("sidebar-open");
 }
 
 function closeSidebar() {
@@ -4232,8 +4236,77 @@ function initLightbox() {
 }
 
 // ---------------------------------------------------------------------------
+// Theme Management System (Light, Dark, System Modes)
+// ---------------------------------------------------------------------------
+function initThemeSystem() {
+    const saved = localStorage.getItem("serendib_theme") || "dark";
+    applyTheme(saved);
+
+    // Bind all theme segments across topbar and mobile drawer
+    document.querySelectorAll(".theme-segment").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const themeVal = btn.getAttribute("data-theme-val");
+            if (themeVal) {
+                setTheme(themeVal);
+            }
+        });
+    });
+
+    // Handle OS system preference dynamically
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const onSystemChange = () => {
+        const curPref = localStorage.getItem("serendib_theme") || "dark";
+        if (curPref === "system") {
+            applyTheme("system");
+        }
+    };
+    if (mediaQuery.addEventListener) {
+        mediaQuery.addEventListener("change", onSystemChange);
+    } else if (mediaQuery.addListener) {
+        mediaQuery.addListener(onSystemChange);
+    }
+
+    window.setTheme = setTheme;
+}
+
+function setTheme(theme) {
+    localStorage.setItem("serendib_theme", theme);
+    applyTheme(theme);
+}
+
+function applyTheme(pref) {
+    let effective = pref;
+    if (pref === "system") {
+        effective = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    document.documentElement.classList.add("theme-switching");
+    document.documentElement.setAttribute("data-theme", effective);
+    document.documentElement.setAttribute("data-theme-preference", pref);
+
+    // Sync active state on all theme segment buttons
+    document.querySelectorAll(".theme-segment").forEach(btn => {
+        const val = btn.getAttribute("data-theme-val");
+        if (val === pref) {
+            btn.classList.add("active");
+            btn.setAttribute("aria-checked", "true");
+        } else {
+            btn.classList.remove("active");
+            btn.setAttribute("aria-checked", "false");
+        }
+    });
+
+    void document.documentElement.offsetHeight;
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("theme-switching");
+        });
+    });
+}
+
+// ---------------------------------------------------------------------------
 // Bootstrap
 // ---------------------------------------------------------------------------
+initThemeSystem();
 wireCreateForms();
 initBackNavigationListeners();
 initScrollToTop();

@@ -6,43 +6,67 @@
 /* --------------------------------------------------------------------------
    Google Font import
    -------------------------------------------------------------------------- */
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
 
 /* --------------------------------------------------------------------------
    CSS custom properties (design tokens)
    -------------------------------------------------------------------------- */
 :root {
-    /* Brand palette */
-    --color-bg:           #0f1117;
-    --color-surface:      #1a1d27;
-    --color-surface-2:    #22263a;
-    --color-border:       #2e3250;
-    --color-accent:       #6c63ff;
-    --color-accent-hover: #5a52e0;
-    --color-accent-soft:  rgba(108,99,255,.15);
+    /* Brand palette — darkroom console */
+    --color-bg:           #0c0b10;
+    --color-surface:      #15141c;
+    --color-surface-2:    #1e1c28;
+    --color-border:       #2c2a3a;
+    --color-accent:       #8b7cff;
+    --color-accent-hover: #a89bff;
+    --color-accent-soft:  rgba(139,124,255,.16);
+    --color-warm:         #e2b36a;
 
     /* Text */
-    --color-text:         #e8eaf6;
-    --color-text-muted:   #8b90b8;
-    --color-text-faint:   #4a4f72;
+    --color-text:         #f3f1ea;
+    --color-text-muted:   #9b97b0;
+    --color-text-faint:   #5c5870;
 
     /* Status colours */
     --color-green:  #34d399;
-    --color-blue:   #60a5fa;
+    --color-blue:   #7dd3fc;
     --color-yellow: #fbbf24;
     --color-red:    #f87171;
     --color-gray:   #6b7280;
 
     /* Sidebar */
-    --sidebar-width: 240px;
+    --sidebar-width: 268px;
 
     /* Spacing */
-    --radius-sm: 6px;
-    --radius-md: 10px;
-    --radius-lg: 16px;
+    --radius-sm: 8px;
+    --radius-md: 14px;
+    --radius-lg: 22px;
 
     /* Transitions */
-    --transition: 0.2s ease;
+    --transition: 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-theme="light"] {
+    --color-bg:           #f8fafc;
+    --color-surface:      #ffffff;
+    --color-surface-2:    #f1f5f9;
+    --color-border:       #cbd5e1;
+    --color-accent:       #4f46e5;
+    --color-accent-hover: #4338ca;
+    --color-accent-soft:  rgba(79, 70, 229, 0.12);
+    --color-warm:         #b45309;
+
+    --color-text:         #0f172a;
+    --color-text-muted:   #334155;
+    --color-text-faint:   #475569;
+
+    --color-green:  #047857;
+    --color-blue:   #1d4ed8;
+    --color-yellow: #b45309;
+    --color-red:    #b91c1c;
+    --color-gray:   #334155;
+    color-scheme: light;
 }
 
 /* --------------------------------------------------------------------------
@@ -55,14 +79,38 @@ html {
 }
 
 body {
-    font-family: "Inter", system-ui, sans-serif;
-    background: var(--color-bg);
+    font-family: "Manrope", system-ui, sans-serif;
+    background:
+        radial-gradient(1200px 600px at 18% -10%, rgba(139, 124, 255, 0.14), transparent 55%),
+        radial-gradient(900px 500px at 110% 8%, rgba(226, 179, 106, 0.08), transparent 50%),
+        var(--color-bg);
     color: var(--color-text);
     font-size: 14px;
     line-height: 1.6;
     min-height: 100vh;
     display: flex;
+    overflow: hidden;
 }
+
+::selection {
+    background: rgba(139, 124, 255, 0.35);
+    color: #fff;
+}
+
+:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+    background: #353348;
+    border-radius: 99px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: #4a4760; background-clip: padding-box; }
 
 a { color: inherit; text-decoration: none; }
 button { cursor: pointer; font-family: inherit; }
@@ -71,34 +119,57 @@ img { max-width: 100%; }
 /* --------------------------------------------------------------------------
    Layout — sidebar + main content
    -------------------------------------------------------------------------- */
-.sidebar {
-    width: var(--sidebar-width);
-    background: var(--color-surface);
-    border-right: 1px solid var(--color-border);
-    display: flex;
-    flex-direction: column;
-    position: fixed;
-    top: 0; left: 0; bottom: 0;
-    z-index: 100;
+.sidebar,
+.sidebar-backdrop,
+.btn-mobile-menu,
+.btn-sidebar-close {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    opacity: 0 !important;
 }
 
 .main-content {
-    margin-left: var(--sidebar-width);
+    margin-left: 0 !important;
     flex: 1;
     overflow-y: auto;
     scroll-behavior: smooth;
     min-height: 100vh;
+    height: 100vh;
+    width: 100% !important;
+    max-width: 100% !important;
 }
 
 /* --------------------------------------------------------------------------
    Sidebar — branding
    -------------------------------------------------------------------------- */
 .sidebar-brand {
-    padding: 20px 20px 16px;
+    padding: 22px 18px 18px;
     border-bottom: 1px solid var(--color-border);
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 10px;
+}
+
+.brand-mark {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(145deg, rgba(139,124,255,0.28), rgba(226,179,106,0.12));
+    border: 1px solid rgba(139,124,255,0.35);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.28);
+}
+
+.brand-mark svg {
+    width: 22px;
+    height: 22px;
+    color: var(--color-warm);
 }
 
 .sidebar-brand-text {
@@ -237,45 +308,79 @@ img { max-width: 100%; }
    Sidebar — navigation
    -------------------------------------------------------------------------- */
 .sidebar-nav {
-    padding: 12px 12px;
+    padding: 16px 12px;
     flex: 1;
+    overflow-y: auto;
 }
 
 .nav-section-label {
     font-size: 10px;
-    font-weight: 600;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 0.14em;
     color: var(--color-text-faint);
-    padding: 8px 8px 4px;
-    margin-top: 8px;
+    padding: 10px 12px 8px;
+    margin-top: 6px;
 }
 
 .nav-link {
+    position: relative;
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 9px 12px;
-    border-radius: var(--radius-sm);
+    gap: 12px;
+    padding: 11px 12px;
+    border-radius: 12px;
     color: var(--color-text-muted);
     font-size: 13.5px;
-    font-weight: 500;
-    transition: background var(--transition), color var(--transition);
-    margin-bottom: 2px;
+    font-weight: 600;
+    transition: background var(--transition), color var(--transition), transform 0.18s var(--ease-out);
+    margin-bottom: 4px;
     user-select: none;
 }
 
 .nav-link:hover {
-    background: var(--color-accent-soft);
+    background: rgba(255,255,255,0.04);
     color: var(--color-text);
+    transform: translateX(3px);
 }
 
 .nav-link.active {
     background: var(--color-accent-soft);
-    color: var(--color-accent);
+    color: var(--color-text);
+    box-shadow: inset 0 0 0 1px rgba(139,124,255,0.28);
 }
 
-.nav-link .nav-icon { font-size: 16px; flex-shrink: 0; }
+.nav-link.active::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 10px;
+    bottom: 10px;
+    width: 3px;
+    border-radius: 0 4px 4px 0;
+    background: var(--color-warm);
+}
+
+.nav-link .nav-icon {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.04);
+    color: inherit;
+}
+
+.nav-link .nav-icon svg {
+    width: 16px;
+    height: 16px;
+}
+
+.nav-link.active .nav-icon {
+    background: rgba(139,124,255,0.22);
+    color: var(--color-warm);
+}
 
 .nav-link.disabled {
     opacity: 0.4;
@@ -317,15 +422,15 @@ img { max-width: 100%; }
    Page header (inside main content)
    -------------------------------------------------------------------------- */
 .page-header {
-    padding: 28px 32px 0;
-    border-bottom: 1px solid var(--color-border);
-    margin-bottom: 28px;
+    padding: 22px 8px 0;
+    border-bottom: 1px solid transparent;
+    margin-bottom: 22px;
 }
 
 .page-header h1 {
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: -0.4px;
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.045em;
 }
 
 .page-header p {
@@ -337,8 +442,12 @@ img { max-width: 100%; }
 /* --------------------------------------------------------------------------
    Sections (SPA views)
    -------------------------------------------------------------------------- */
-.section { display: none; padding: 0 32px 32px; }
-.section.active { display: block; }
+.section { display: none; padding: 0 32px 48px; }
+.section.active,
+.section.active.section-enter {
+    display: block;
+    animation: viewIn 0.48s var(--ease-out) both;
+}
 
 /* --------------------------------------------------------------------------
    Dashboard — stat cards
@@ -351,17 +460,29 @@ img { max-width: 100%; }
 }
 
 .stat-card {
-    background: var(--color-surface);
+    background: linear-gradient(180deg, rgba(255,255,255,0.035), transparent 40%), var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     padding: 20px 22px;
     display: flex;
     flex-direction: column;
     gap: 6px;
-    transition: border-color var(--transition);
+    transition: border-color var(--transition), transform 0.25s var(--ease-out), box-shadow var(--transition);
 }
 
-.stat-card:hover { border-color: var(--color-accent); }
+.section.active .stat-card {
+    animation: riseIn 0.55s var(--ease-out) both;
+}
+.section.active .stat-card:nth-child(1) { animation-delay: 0.04s; }
+.section.active .stat-card:nth-child(2) { animation-delay: 0.1s; }
+.section.active .stat-card:nth-child(3) { animation-delay: 0.16s; }
+.section.active .stat-card:nth-child(4) { animation-delay: 0.22s; }
+
+.stat-card:hover {
+    border-color: rgba(139,124,255,0.45);
+    transform: translateY(-3px);
+    box-shadow: 0 14px 32px rgba(0,0,0,0.28);
+}
 
 .stat-icon { font-size: 22px; }
 
@@ -2956,4 +3077,91 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 .photo-thumb-wrap:hover::after {
     opacity: 1;
     transform: translateY(0);
+}
+
+/* ==========================================================================
+   Shell motion — left rail, top command bar, view change
+   ========================================================================== */
+@keyframes railIn {
+    from { opacity: 0; transform: translateX(-18px); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes viewIn {
+    from { opacity: 0; transform: translateY(14px); filter: blur(6px); }
+    to { opacity: 1; transform: none; filter: none; }
+}
+
+@keyframes riseIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes markPulse {
+    0%, 100% { box-shadow: 0 8px 20px rgba(0,0,0,0.28), 0 0 0 0 rgba(226, 179, 106, 0.0); }
+    50% { box-shadow: 0 8px 20px rgba(0,0,0,0.28), 0 0 0 6px rgba(226, 179, 106, 0.12); }
+}
+
+.brand-mark {
+    animation: markPulse 4.5s ease-in-out infinite;
+}
+
+.widget,
+.create-panel,
+.filter-toolbar,
+.table-wrapper {
+    transition: transform 0.28s var(--ease-out), border-color var(--transition), box-shadow var(--transition);
+}
+
+.widget:hover,
+.create-panel:hover {
+    border-color: rgba(139,124,255,0.32);
+    box-shadow: 0 12px 28px rgba(0,0,0,0.22);
+}
+
+.btn-open,
+.btn-top-back,
+.btn-top-dashboard,
+.btn-top-prev-badge {
+    transition: transform 0.18s var(--ease-out), background var(--transition), border-color var(--transition), box-shadow var(--transition), color var(--transition);
+}
+
+.btn-open:hover {
+    transform: translateY(-1px);
+}
+
+.top-nav-bar {
+    background: rgba(12, 11, 16, 0.72) !important;
+    backdrop-filter: blur(18px) saturate(1.2);
+    -webkit-backdrop-filter: blur(18px) saturate(1.2);
+    border-bottom: 1px solid var(--color-border);
+    padding: 14px 32px;
+}
+
+.top-nav-left {
+    width: 100%;
+}
+
+.top-nav-bar .btn-top-back,
+.top-nav-bar .btn-top-dashboard,
+.top-nav-bar .btn-top-prev-badge {
+    border-radius: 999px;
+    padding: 8px 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+    .section.active,
+    .section.active .stat-card,
+    .sidebar,
+    .brand-mark {
+        animation: none !important;
+        filter: none !important;
+        transform: none !important;
+    }
 }
